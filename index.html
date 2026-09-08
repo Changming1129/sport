@@ -4694,9 +4694,38 @@
     async function populateClassLoginSelect() {
       const sel = document.getElementById('classLoginSelect');
       if (!sel) return;
-      // 開啟網站時已取得公開班級清單；登入時不再額外發送 GET。
-      const classIds = Object.keys(classTypesMap || {}).sort((a, b) => String(a).localeCompare(String(b), 'zh-Hant', { numeric: true }));
-      sel.innerHTML = classIds.map(cls => `<option value="${cls}">${cls} 班</option>`).join('');
+
+      /*
+       * 登入班級清單的唯一來源改為「班級帳號清單 classAccounts」。
+       * 原本使用 classTypesMap，會被舊的 701~905 預設值限制住；
+       * 即使 CSV 已匯入 706~710、806~811、906~914，登入畫面仍看不到。
+       *
+       * classAccounts 在：
+       * 1. 雲端公開資料載入時，由 data.classIds 建立
+       * 2. 匯入學生 CSV 時，由每筆學生的 classId 建立
+       *
+       * 因此可以自動支援名冊中的所有班級，而不需要把班級寫死在 HTML。
+       */
+      const classIds = Object.keys(classAccounts || {})
+        .map(c => String(c).trim())
+        .filter(Boolean);
+
+      // 再以目前學生名冊補齊本機尚未建立帳號的班級。
+      // 這讓「剛匯入 CSV、尚未完成雲端同步」的情況也能立即選班。
+      (studentsList || []).forEach(student => {
+        const cls = String(student?.classId || '').trim();
+        if (cls && !classIds.includes(cls)) classIds.push(cls);
+      });
+
+      classIds.sort((a, b) =>
+        String(a).localeCompare(String(b), 'zh-Hant', { numeric: true })
+      );
+
+      sel.innerHTML = classIds.length
+        ? classIds.map(cls => `<option value="${cls}">${cls} 班</option>`).join('')
+        : '<option value="">目前尚無班級資料</option>';
+
+      if (classIds.length) sel.value = classIds[0];
     }
 
     async function executeLogin() {
