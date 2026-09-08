@@ -1871,7 +1871,8 @@
       subTitle: '賽事報名與成績海報管理系統',
       regStartDate: '',
       regEndDate: '',
-      googleSheetUrl: ''
+      // 全校共用的 Google Apps Script Web App 網址：所有人開啟 GitHub 網頁時自動帶入
+      googleSheetUrl: 'https://script.google.com/macros/s/AKfycbxchxmNll1JbwriFTfW9DDh9PYnMhH-tbG0GuIF3TrW4crelTFvvWdRWEmz13e6oTPY9A/exec'
     };
 
     let categoriesList = ['徑賽', '田賽', '接力賽', '趣味競賽'];
@@ -4671,7 +4672,7 @@
       if (sYear) sYear.value = systemConfig.academicYear;
       if (sStart) sStart.value = systemConfig.regStartDate;
       if (sEnd) sEnd.value = systemConfig.regEndDate;
-      if (sSheet) sSheet.value = systemConfig.googleSheetUrl;
+      if (sSheet) sSheet.value = systemConfig.googleSheetUrl || 'https://script.google.com/macros/s/AKfycbxchxmNll1JbwriFTfW9DDh9PYnMhH-tbG0GuIF3TrW4crelTFvvWdRWEmz13e6oTPY9A/exec';
     }
 
     function downloadFullBackupJson() {
