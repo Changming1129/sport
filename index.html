@@ -1604,11 +1604,17 @@
 
         <div>
           <label class="block font-bold text-slate-700 mb-1">文件狀態標籤：</label>
-          <select id="confirmPrintStatusSelect" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold">
+          <select id="confirmPrintStatusSelect" onchange="updateConfirmPrintNoticeDefault()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold">
             <option value="正式報名聯">正式報名聯</option>
             <option value="班級補印聯">班級補印聯</option>
             <option value="班級空白報名聯">班級空白報名聯</option>
           </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">公告／說明文字（可手動編輯）：</label>
+          <textarea id="confirmPrintNoticeText" rows="6" class="w-full bg-white border-2 border-purple-200 focus:border-purple-500 rounded-xl p-3 text-sm leading-relaxed font-medium text-slate-800" placeholder="可在此修改列印單上的公告或說明內容"></textarea>
+          <div class="text-[11px] text-slate-500 mt-1">此內容會套用到「正式報名聯」、「班級補印聯」及「班級空白報名聯」的列印單。</div>
         </div>
 
         <div>
@@ -2682,6 +2688,7 @@
     const STUDENT_CLOUD_CACHE_KEY = 'jialin_sports_students_cloud_cache_v1';
     let studentCloudSyncTimer = null;
     let studentCloudLastUpdatedAt = 0;
+    let studentCloudDirty = false;
 
     function getStudentCloudUrl() {
       return (systemConfig.googleSheetUrl || '').trim();
@@ -2714,6 +2721,8 @@
     async function loadCloudStudentData(silent = false) {
       const url = getStudentCloudUrl();
       if (!url) return false;
+      // 本機剛修改密碼／名冊而尚未完成雲端寫入時，不允許背景輪詢用舊資料覆蓋。
+      if (studentCloudDirty) return false;
 
       try {
         const response = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=loadStudents&_=' + Date.now(), {
@@ -2729,6 +2738,7 @@
           if (data.classAccounts && typeof data.classAccounts === 'object') classAccounts = data.classAccounts;
           if (data.classTypesMap && typeof data.classTypesMap === 'object') classTypesMap = data.classTypesMap;
           studentCloudLastUpdatedAt = Number(data.updatedAt || Date.now());
+          studentCloudDirty = false;
           saveStudentCloudCache();
           syncQuickClassSelect();
           renderAdminStudents();
@@ -2755,6 +2765,7 @@
         updatedAt: Date.now()
       };
       studentCloudLastUpdatedAt = payload.updatedAt;
+      studentCloudDirty = true;
       saveStudentCloudCache();
 
       try {
@@ -2767,6 +2778,7 @@
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const data = await response.json().catch(() => ({ ok: true }));
         if (data && data.ok === false) throw new Error(data.message || '雲端儲存失敗');
+        studentCloudDirty = false;
         if (!silent) showToast('學生名冊已同步至雲端');
         return true;
       } catch (err) {
@@ -4163,12 +4175,41 @@
       if (scope) scope.value = 'school';
       if (grade) grade.value = '7';
       if (status) status.value = '正式報名聯';
+      updateConfirmPrintNoticeDefault(true);
       renderConfirmPrintClassOptions('');
       onConfirmPrintScopeChange();
       openModal('classConfirmPrintModal');
     }
 
-    function buildClassConfirmationHtml(cls, docStatus) {
+    function getDefaultConfirmPrintNotice(docStatus) {
+      if (docStatus === '班級空白報名聯') {
+        return `【班級空白報名聯使用說明】\n請先由班級討論、手寫編排參賽學生，再由班級登入系統完成正式線上報名。\n班級登入密碼：{班級密碼}`;
+      }
+      return `【導師確認簽章須知與大會公告】\n1. 請導師核對全班參賽選手無誤後於下方簽名聯核章。\n2. 如選手因病請假換人，請由導師簽註於備註欄並送交學務處體育組。\n3. 請於規定時間內繳回本單至體育組備查。`;
+    }
+
+    function updateConfirmPrintNoticeDefault(force) {
+      const statusEl = document.getElementById('confirmPrintStatusSelect');
+      const noticeEl = document.getElementById('confirmPrintNoticeText');
+      if (!statusEl || !noticeEl) return;
+      const defaultText = getDefaultConfirmPrintNotice(statusEl.value);
+      if (force || !noticeEl.value.trim() || noticeEl.dataset.status === noticeEl.dataset.lastStatus) {
+        noticeEl.value = defaultText;
+      }
+      noticeEl.dataset.status = statusEl.value;
+      noticeEl.dataset.lastStatus = statusEl.value;
+    }
+
+    function escapeHtmlForPrint(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function buildClassConfirmationHtml(cls, docStatus, customNotice) {
       const grade = cls.charAt(0);
       const classEvents = eventsList.filter(e => e.grade === grade || e.grade === 'all_school');
       const assigned = athleteRegistrations.filter(r => r.classId === cls);
@@ -4185,32 +4226,32 @@
 
         return `
           <tr>
-            <td class="border border-slate-950 px-1.5 py-1 text-center font-bold">${ev.grade === 'all_school' ? '全校' : ev.grade + '年級'}</td>
-            <td class="border border-slate-950 px-1.5 py-1 font-black">${ev.name}</td>
-            <td class="border border-slate-950 px-1.5 py-1 text-center font-bold">${ev.category}</td>
-            <td class="border border-slate-950 px-1.5 py-1 text-center font-mono">${quotaStr}</td>
-            <td class="border border-slate-950 px-1.5 py-1 font-bold ${isBlank ? 'text-slate-500' : ''}">${rosterStr}</td>
-            <td class="border border-slate-950 px-1.5 py-1 text-center font-mono font-bold">${countStr}</td>
-            <td class="border border-slate-950 px-1.5 py-1 text-center font-mono">[   ]</td>
-            <td class="border border-slate-950 px-1.5 py-1"></td>
+            <td class="border border-slate-950 px-1 py-0.5 text-center font-bold whitespace-nowrap">${ev.grade === 'all_school' ? '全校' : ev.grade + '年級'}</td>
+            <td class="border border-slate-950 px-1 py-0.5 font-black whitespace-nowrap">${ev.name}</td>
+            <td class="border border-slate-950 px-1.5 py-1 text-center font-bold whitespace-nowrap">${ev.category}</td>
+            <td class="border border-slate-950 px-1 py-0.5 text-center font-mono whitespace-nowrap">${quotaStr}</td>
+            <td class="border border-slate-950 px-1 py-0.5 font-bold ${isBlank ? 'text-slate-500' : ''} whitespace-normal break-words">${rosterStr}</td>
+            <td class="border border-slate-950 px-1 py-0.5 text-center font-mono font-bold whitespace-nowrap">${countStr}</td>
+            <td class="border border-slate-950 px-1 py-0.5 text-center font-mono whitespace-nowrap">[   ]</td>
+            <td class="border border-slate-950 px-1 py-0.5 whitespace-nowrap"></td>
           </tr>
         `;
       }).join('');
 
-      const noticeHtml = isBlank ? `
-        <div class="border border-slate-950 rounded-xl px-2.5 py-2 my-1.5 text-[10px] leading-snug">
-          <div class="font-black mb-0.5">【班級空白報名聯使用說明】</div>
-          <div>請先由班級討論、手寫編排參賽學生，再由班級登入系統完成正式線上報名。</div>
-          <div class="mt-1 grid grid-cols-2 gap-x-4 font-black">
-            <span>班級登入帳號：${cls}</span>
-            <span>班級登入密碼：${classPassword || '（尚未設定）'}</span>
-          </div>
-        </div>` : `
-        <div class="border border-slate-950 rounded-xl px-2.5 py-2 my-1.5 text-[10px] leading-snug">
-          <div class="font-black mb-0.5">【導師確認簽章須知與大會公告】</div>
-          <div>1. 請導師核對全班參賽選手無誤後於下方簽名聯核章。</div>
-          <div>2. 如選手因病請假換人，請由導師簽註於備註欄並送交學務處體育組。</div>
-          <div>3. 請於規定時間內繳回本單至體育組備查。</div>
+      let rawNotice = (customNotice && String(customNotice).trim())
+        ? String(customNotice)
+        : getDefaultConfirmPrintNotice(docStatus);
+
+      // 空白報名聯因班級已由下拉選單綁定，僅顯示該班級登入密碼，不顯示登入帳號。
+      rawNotice = rawNotice
+        .replace(/班級登入帳號：[^\\n\\r]*/g, '')
+        .replace(/班級登入密碼：\{班級密碼\}/g, '班級登入密碼：' + (classPassword || '（尚未設定）'))
+        .replace(/\{班級帳號\}/g, '')
+        .replace(/\{班級密碼\}/g, classPassword || '（尚未設定）');
+      const safeNotice = escapeHtmlForPrint(rawNotice).replace(/\r?\n/g, '<br>');
+      const noticeHtml = `
+        <div class="border-2 border-slate-950 rounded-xl px-3 py-2 my-1.5 text-[16px] leading-snug font-medium" style="line-height:1.25;">
+          ${safeNotice}
         </div>`;
 
       const signaturesHtml = isBlank ? `
@@ -4243,7 +4284,7 @@
 
             ${noticeHtml}
 
-            <table class="w-full border-collapse border-2 border-slate-950 text-[9px] my-1.5">
+            <table class="w-full border-collapse border-2 border-slate-950 text-[16px] my-1.5" style="line-height:1.15;">
               <thead class="bg-slate-100 font-black">
                 <tr>
                   <th class="border border-slate-950 px-1 py-1 text-center w-12 whitespace-nowrap">年級</th>
@@ -4271,19 +4312,21 @@
     function executeClassConfirmPrint() {
       const classes = getSelectedConfirmationClasses();
       const status = document.getElementById('confirmPrintStatusSelect').value;
+      const notice = document.getElementById('confirmPrintNoticeText')?.value || '';
       if (!classes.length) {
         showToast('請先選擇有效的列印範圍或班級！', 'error');
         return;
       }
 
       closeModal('classConfirmPrintModal');
-      const html = classes.map(cls => buildClassConfirmationHtml(cls, status)).join('');
+      const html = classes.map(cls => buildClassConfirmationHtml(cls, status, notice)).join('');
       launchPrintJob(html);
     }
 
     function executeClassConfirmExportImage() {
       const classes = getSelectedConfirmationClasses();
       const status = document.getElementById('confirmPrintStatusSelect').value;
+      const notice = document.getElementById('confirmPrintNoticeText')?.value || '';
       if (!classes.length) {
         showToast('請先選擇有效的列印範圍或班級！', 'error');
         return;
@@ -4308,7 +4351,7 @@
         }
 
         const cls = classes[index];
-        tempDiv.innerHTML = buildClassConfirmationHtml(cls, status);
+        tempDiv.innerHTML = buildClassConfirmationHtml(cls, status, notice);
         const target = tempDiv.firstElementChild;
 
         html2canvas(target, { scale: 2 }).then(canvas => {
@@ -4822,7 +4865,7 @@
       }
     }
 
-    function executeBatchPasswordGeneration() {
+    async function executeBatchPasswordGeneration() {
       const mode = document.getElementById('pwdGenModeSelect').value;
       const prefix = document.getElementById('pwdPrefixInput').value.trim() || 'jl';
 
@@ -4838,21 +4881,52 @@
         }
       });
 
+      // 重要：批次產生後立即寫入雲端，避免 30 秒背景讀取把新密碼覆蓋回舊密碼。
+      studentCloudDirty = true;
+      saveStudentCloudCache();
       closeModal('batchPasswordModal');
       renderAdminAccounts();
-      showToast('已批次生成全校班級專屬密碼！');
+
+      const saved = await saveCloudStudentData(false);
+      if (saved) {
+        showToast('已批次生成並成功儲存全校班級專屬密碼！');
+      } else {
+        showToast('密碼已產生，但雲端儲存失敗；請確認 GAS 已更新為整合版。', 'error');
+      }
+    }
+
+    function updateSingleClassPassword(cls, value) {
+      const clean = String(value || '').trim();
+      if (!clean) {
+        showToast(`${cls} 班密碼不可為空白！`, 'error');
+        renderAdminAccounts();
+        return;
+      }
+      classAccounts[cls] = clean;
+      studentCloudDirty = true;
+      saveStudentCloudCache();
+      renderAdminAccounts();
+      scheduleCloudStudentSync(300);
+      showToast(`${cls} 班密碼已修改，正在同步雲端…`);
     }
 
     function renderAdminAccounts() {
       const grid = document.getElementById('adminClassAccountsGrid');
       if (!grid) return;
       grid.innerHTML = Object.keys(classAccounts).map(cls => `
-        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
           <div class="flex items-center justify-between text-xs font-bold text-slate-800">
             <span>${cls} 班</span>
             <span class="text-[11px] text-indigo-600 font-bold">${classTypesMap[cls] === 'sports' ? '體育班' : '普通班'}</span>
           </div>
-          <div class="font-mono font-black text-base text-slate-900">${classAccounts[cls]}</div>
+          <div class="flex items-center gap-2">
+            <input type="text" value="${String(classAccounts[cls] || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}"
+              class="w-full min-w-0 px-2.5 py-2 bg-white border border-slate-300 rounded-lg font-mono font-black text-base text-slate-900 focus:ring-2 focus:ring-amber-400 outline-none"
+              onchange="updateSingleClassPassword('${cls}', this.value)"
+              onkeydown="if(event.key==='Enter'){this.blur();}">
+            <button type="button" onclick="updateSingleClassPassword('${cls}', this.previousElementSibling.value)"
+              class="shrink-0 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold">儲存</button>
+          </div>
         </div>
       `).join('');
     }
