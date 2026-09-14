@@ -3257,22 +3257,45 @@
 
       eventResults = eventResults.filter(r => !(r.eventId === eventId && r.stage === stage));
 
+      // 一般賽事採「競賽排名（Competition Ranking）」：同分同名次，後續名次跳號。
+      // 例如：1、2、3、4、5、5、7；因此取前 6 名時，若第 6 名並列，兩人都獲獎。
       parsedScores.forEach((item, index) => {
-        let rank = index + 1;
-        let rankLabel = `第 ${rank} 名`;
+        let rank;
+        let rankLabel;
         let note = '';
+        const isSpecialCoFirst = triggerCoFirst && index === 1;
 
         if (index === 0) {
-          rank = 1; rankLabel = '第一名';
+          rank = 1;
+          rankLabel = '第一名';
           if (item.isSports) note = '體育班最優';
-        } else if (index === 1 && triggerCoFirst) {
-          rank = 1; rankLabel = '第一名 (並列)';
+        } else if (isSpecialCoFirst) {
+          rank = 1;
+          rankLabel = '第一名 (並列)';
           note = '普通班最優並列第一';
-        } else if (index === 1) {
-          rank = 2; rankLabel = '第二名';
-        } else if (index === 2) {
-          rank = 3; rankLabel = '第三名';
+        } else {
+          // 特殊體育班並列第一佔兩個名額，後續從第 3 名開始。
+          if (triggerCoFirst && index >= 2) {
+            const previous = parsedScores[index - 1];
+            const previousWasSpecial = index - 1 === 1;
+            if (previousWasSpecial) {
+              rank = 3;
+            } else if (item.numericScore === previous.numericScore) {
+              rank = parsedScores[index - 1]._computedRank;
+            } else {
+              rank = index + 1;
+            }
+          } else if (index > 0 && item.numericScore === parsedScores[index - 1].numericScore) {
+            rank = parsedScores[index - 1]._computedRank;
+          } else {
+            rank = index + 1;
+          }
+
+          const tieCount = parsedScores.filter(x => x.numericScore === item.numericScore).length;
+          rankLabel = `第 ${rank} 名${tieCount > 1 ? ' (並列)' : ''}`;
         }
+
+        item._computedRank = rank;
 
         eventResults.push({
           id: 'RES_' + Math.random().toString(36).substr(2, 9),
@@ -4683,7 +4706,6 @@
         sel.innerHTML += `<option value="${e.id}">${e.name} (${e.category})</option>`;
       });
       onClassSelectEvent();
-      populateClassRoster(cls);
     }
 
     function onClassSelectEvent() {
@@ -4692,6 +4714,18 @@
       const eventId = document.getElementById('classEventSelect').value;
       const ev = eventsList.find(e => e.id === eventId);
       if (!ev) return;
+
+      // 依賽事性別即時過濾可報名學生；不限／男女混合則顯示全班。
+      const rosterSel = document.getElementById('classRosterSelect');
+      if (rosterSel) {
+        const eligibleStudents = studentsList.filter(s =>
+          s.classId === cls &&
+          (ev.gender === '不限' || ev.gender === '男女混合' || s.gender === ev.gender)
+        );
+        rosterSel.innerHTML = eligibleStudents.length
+          ? eligibleStudents.map(s => `<option value="${s.id}">${s.seat} 號 - ${s.name} (${s.gender})</option>`).join('')
+          : '<option value="">沒有符合本賽事性別條件的學生</option>';
+      }
 
       const detailBox = document.getElementById('classEventDetailBox');
       detailBox.innerHTML = `
@@ -4747,6 +4781,12 @@
       const student = studentsList.find(s => s.id === studentId);
       const ev = eventsList.find(e => e.id === eventId);
       if (!student || !ev) return;
+
+      // 報名時再次強制檢查性別，避免下拉選單或舊資料繞過限制。
+      if (ev.gender !== '不限' && ev.gender !== '男女混合' && student.gender !== ev.gender) {
+        showToast(`本賽事為${ev.gender}組，${student.name}為${student.gender}，無法報名！`, 'error');
+        return;
+      }
 
       const currentAssigned = athleteRegistrations.filter(r => r.classId === cls && r.eventId === eventId);
       const totalMax = ev.regularQuota + (ev.reserveQuota || 0);
