@@ -860,9 +860,13 @@
                 <div id="accCanvas" class="accordion-content open p-4 space-y-3.5 text-sm bg-white">
                   <div>
                     <label class="block font-bold text-slate-700 mb-1.5">A4 方向切換：</label>
-                    <div class="grid grid-cols-2 gap-2.5">
+                    <div class="grid grid-cols-3 gap-2.5">
                       <button onclick="setCertOrientation('portrait')" id="btnCertPortrait" class="py-2.5 rounded-xl font-bold bg-blue-900 text-white shadow">A4 直式</button>
                       <button onclick="setCertOrientation('landscape')" id="btnCertLandscape" class="py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700">A4 橫式</button>
+                      <button onclick="activateCertCustomMode()" id="btnCertCustom" class="py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700">自訂大小</button>
+                    </div>
+                    <div id="certCustomSizeHint" class="hidden rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                      <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>上傳圖片後，畫布會自動套用圖片原始比例。
                     </div>
                   </div>
                   <div>
@@ -1025,7 +1029,7 @@
             <div class="lg:col-span-8 flex flex-col items-center">
               <div class="w-full flex items-center justify-between bg-slate-800 text-white px-5 py-2.5 rounded-2xl mb-4 text-xs sm:text-sm">
                 <div class="flex items-center space-x-3">
-                  <span class="font-bold">A4 畫布所見即所得預覽</span>
+                  <span id="certCanvasTitle" class="font-bold">A4 畫布所見即所得預覽</span>
                   <span id="canvasDimBadge" class="px-2.5 py-0.5 rounded bg-slate-700 text-slate-300 font-mono text-xs">794 × 1123 px</span>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -1038,7 +1042,7 @@
               <div class="w-full cert-canvas-container rounded-3xl p-6 overflow-auto flex justify-center min-h-[640px]">
                 <div id="certCanvasBox" class="cert-canvas-box rounded shadow-2xl transition-all" style="width: 794px; height: 1123px;">
                   <div id="certSafeMarginLine" class="safe-margin-line"></div>
-                  <div id="certCanvasBg" class="absolute inset-0 bg-contain bg-no-repeat bg-center pointer-events-none"></div>
+                  <div id="certCanvasBg" class="absolute inset-0 bg-no-repeat bg-center pointer-events-none"></div>
                   <div id="certCanvasElements" class="absolute inset-0 overflow-hidden"></div>
                 </div>
               </div>
@@ -1228,7 +1232,7 @@
         <div>
           <label class="block font-bold text-slate-700 mb-1">班級專屬密碼：</label>
           <input type="password" id="classPasswordInput" placeholder="請輸入 6 碼密碼" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-800">
-          <p class="text-xs text-slate-400 mt-1">班級密碼由大會管理員統一設定；不會在公開網頁顯示。</p>
+          <p class="text-xs text-slate-400 mt-1">預設測試密碼為 123456</p>
         </div>
       </div>
 
@@ -1603,6 +1607,7 @@
           <select id="confirmPrintStatusSelect" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold">
             <option value="正式報名聯">正式報名聯</option>
             <option value="班級補印聯">班級補印聯</option>
+            <option value="班級空白報名聯">班級空白報名聯</option>
           </select>
         </div>
 
@@ -1864,168 +1869,6 @@
     let certPrintRegistry = {};
     const CERT_PRINT_STORAGE_KEY = 'jialin_sports_cert_print_registry_v1';
 
-    // ===== 全校共用 Google Apps Script 雲端同步／權限驗證 =====
-    // GitHub Pages 開啟後自動使用此網址；不再讓使用者自行輸入。
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec';
-    const AUTH_TOKEN_KEY = 'jialin_sports_auth_token_v2';
-    let authToken = sessionStorage.getItem(AUTH_TOKEN_KEY) || '';
-    let cloudSyncReady = false, cloudSyncBusy = false, cloudSaveTimer = null;
-    let lastCloudUpdatedAt = 0, lastLocalSnapshot = '', applyingCloudState = false;
-
-    function getCloudStateSnapshot() {
-      return {
-        version: 2,
-        systemConfig: { ...systemConfig, googleSheetUrl: APPS_SCRIPT_URL },
-        classTypesMap, classAccounts, categoriesList, eventsList, studentsList,
-        athleteRegistrations, eventResults, announcementsList, certStudioState, certPrintRegistry
-      };
-    }
-    function getLocalSnapshotString() {
-      try { return JSON.stringify(getCloudStateSnapshot()); } catch (e) { return ''; }
-    }
-    function applyPublicState(data) {
-      if (!data || typeof data !== 'object') return false;
-      applyingCloudState = true;
-      try {
-        if (data.systemConfig) systemConfig = { ...systemConfig, ...data.systemConfig, googleSheetUrl: APPS_SCRIPT_URL };
-        if (data.classTypesMap) classTypesMap = data.classTypesMap;
-        if (Array.isArray(data.classIds)) {
-          // 公開端點只提供班級名稱，不提供班級密碼。
-          const old = classAccounts || {};
-          classAccounts = Object.fromEntries(data.classIds.map(c => [c, old[c] || '']));
-        }
-        if (Array.isArray(data.categoriesList)) categoriesList = data.categoriesList;
-        if (Array.isArray(data.eventsList)) eventsList = data.eventsList;
-        if (Array.isArray(data.eventResults)) eventResults = data.eventResults;
-        if (Array.isArray(data.announcementsList)) announcementsList = data.announcementsList;
-      } finally { applyingCloudState = false; }
-      return true;
-    }
-    function applyPrivateState(data) {
-      if (!data || typeof data !== 'object') return false;
-      applyingCloudState = true;
-      try {
-        if (data.systemConfig) systemConfig = { ...systemConfig, ...data.systemConfig, googleSheetUrl: APPS_SCRIPT_URL };
-        if (data.classTypesMap) classTypesMap = data.classTypesMap;
-        if (data.classAccounts) classAccounts = data.classAccounts;
-        if (Array.isArray(data.categoriesList)) categoriesList = data.categoriesList;
-        if (Array.isArray(data.eventsList)) eventsList = data.eventsList;
-        if (Array.isArray(data.studentsList)) studentsList = data.studentsList;
-        if (Array.isArray(data.athleteRegistrations)) athleteRegistrations = data.athleteRegistrations;
-        if (Array.isArray(data.eventResults)) eventResults = data.eventResults;
-        if (Array.isArray(data.announcementsList)) announcementsList = data.announcementsList;
-        if (data.certStudioState) certStudioState = { ...certStudioState, ...data.certStudioState };
-        if (data.certPrintRegistry && typeof data.certPrintRegistry === 'object') certPrintRegistry = data.certPrintRegistry;
-      } finally { applyingCloudState = false; }
-      lastLocalSnapshot = getLocalSnapshotString();
-      return true;
-    }
-    async function cloudRequest(action, payload = {}) {
-      const body = { action, token: authToken, ...payload };
-      const r = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body),
-        cache: 'no-store'
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const result = await r.json();
-      if (!result.ok) throw new Error(result.error || '雲端服務拒絕要求');
-      return result;
-    }
-    async function cloudGetPublicState() {
-      const r = await fetch(APPS_SCRIPT_URL + '?action=public&_=' + Date.now(), { cache: 'no-store' });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const result = await r.json();
-      if (!result.ok) throw new Error(result.error || '公開資料載入失敗');
-      return result;
-    }
-    async function cloudGetPrivateState() {
-      if (!authToken) throw new Error('尚未登入');
-      return await cloudRequest('getPrivate');
-    }
-    async function cloudSaveState(showMessage = false) {
-      if (!authToken || cloudSyncBusy || applyingCloudState) return false;
-      cloudSyncBusy = true;
-      try {
-        const result = await cloudRequest('save', { state: getCloudStateSnapshot() });
-        lastCloudUpdatedAt = Number(result.updatedAt || Date.now());
-        lastLocalSnapshot = getLocalSnapshotString();
-        if (showMessage) showToast('資料已安全同步至雲端');
-        return true;
-      } catch (e) {
-        console.warn('Google Apps Script 雲端儲存失敗：', e);
-        if (/登入|權限|token|授權/i.test(String(e.message))) {
-          authToken = '';
-          sessionStorage.removeItem(AUTH_TOKEN_KEY);
-          currentUser = null;
-        }
-        if (showMessage) showToast('雲端同步失敗，請重新登入後再試。', 'error');
-        return false;
-      } finally { cloudSyncBusy = false; }
-    }
-    function queueCloudSave(showMessage = false) {
-      if (!cloudSyncReady || !authToken || applyingCloudState) return;
-      clearTimeout(cloudSaveTimer);
-      cloudSaveTimer = setTimeout(() => cloudSaveState(showMessage), showMessage ? 50 : 400);
-    }
-    function saveCloudNow(showMessage = true) { queueCloudSave(showMessage); }
-
-    async function loadPrivateStateAfterLogin() {
-      const result = await cloudGetPrivateState();
-      if (!applyPrivateState(result.data)) throw new Error('私人資料格式錯誤');
-      lastCloudUpdatedAt = Number(result.updatedAt || 0);
-      cloudSyncReady = true;
-      lastLocalSnapshot = getLocalSnapshotString();
-      refreshAllAfterCloudState();
-    }
-    function refreshAllAfterCloudState() {
-      applySystemSettingsToUI();
-      refreshEventCategoryDropdowns();
-      refreshPublicCategoryButtons();
-      syncQuickClassSelect(false);
-      initRegFilters();
-      initScoreFilters();
-      if (currentUser?.role === 'admin') {
-        renderAdminStudents(); renderAdminRegistrationsTable(); renderScoreEntryTable(); renderAdminAccounts();
-      } else if (currentUser?.role === 'class') {
-        showClassPortal(currentUser.classId);
-      }
-      renderPublicAnnouncements();
-      renderPublicHeroCards();
-    }
-
-    async function syncCloudOnStartup() {
-      try {
-        const result = await cloudGetPublicState();
-        applyPublicState(result.data);
-        lastCloudUpdatedAt = Number(result.updatedAt || 0);
-        cloudSyncReady = true;
-        lastLocalSnapshot = getLocalSnapshotString();
-      } catch (e) {
-        console.warn('公開雲端資料載入失敗：', e);
-        cloudSyncReady = true;
-        showToast('雲端目前無法連線，先顯示本機公開資料。', 'error');
-      }
-    }
-
-    // 本版本刻意取消每 5 秒輪詢：只有「開啟網頁」與「使用者儲存」才連線。
-    function startCloudSync() {
-      clearTimeout(cloudSaveTimer);
-    }
-
-    async function testGoogleSheetSync() {
-      try {
-        showToast('正在測試 Google Apps Script 雲端連線...');
-        const result = await cloudGetPublicState();
-        if (!result?.ok) throw new Error('API 回應異常');
-        showToast('Google Apps Script 連線正常！');
-      } catch (e) {
-        console.error(e);
-        showToast('雲端連線測試失敗，請確認 Apps Script 已部署。', 'error');
-      }
-    }
-
     let systemConfig = {
       schoolName: '新北市立佳林國民中學',
       academicYear: '115 學年度全校運動大會',
@@ -2034,7 +1877,7 @@
       regStartDate: '',
       regEndDate: '',
       // 全校共用的 Google Apps Script Web App 網址：所有人開啟 GitHub 網頁時自動帶入
-      googleSheetUrl: 'https://script.google.com/macros/s/AKfycbxchxmNll1JbwriFTfW9DDh9PYnMhH-tbG0GuIF3TrW4crelTFvvWdRWEmz13e6oTPY9A/exec'
+      googleSheetUrl: 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec'
     };
 
     let categoriesList = ['徑賽', '田賽', '接力賽', '趣味競賽'];
@@ -2045,7 +1888,11 @@
       '901': 'regular', '902': 'regular', '903': 'regular', '904': 'regular', '905': 'sports'
     };
 
-    let classAccounts = Object.fromEntries(Object.keys(classTypesMap).map(c => [c, '']));
+    let classAccounts = {
+      '701': '123456', '702': '123456', '703': '123456', '704': '123456', '705': '123456',
+      '801': '123456', '802': '123456', '803': '123456', '804': '123456', '805': '123456',
+      '901': '123456', '902': '123456', '903': '123456', '904': '123456', '905': '123456'
+    };
 
     var ALLOWED_AWARD_QUOTAS = [1, 3, 4, 6, 8];
 
@@ -2077,7 +1924,16 @@
       { id: 'A002', title: '大隊接力棒次編配與候補須知', date: '2026-09-03', content: '大隊接力每班指派 16 位正式棒次與 <b>2 位候補選手</b>，檢錄時將嚴格核對號碼布與道次序位。' }
     ];
 
-    let studentsList = [];
+    let studentsList = [
+      { id: 'S70101', studentNo: '115001', grade: '7', classId: '701', seat: '01', name: '陳小明', gender: '男' },
+      { id: 'S70102', studentNo: '115002', grade: '7', classId: '701', seat: '02', name: '林大華', gender: '男' },
+      { id: 'S70103', studentNo: '115003', grade: '7', classId: '701', seat: '03', name: '黃美玲', gender: '女' },
+      { id: 'S70501', studentNo: '115051', grade: '7', classId: '705', seat: '01', name: '張強森 (體)', gender: '男' },
+      { id: 'S70502', studentNo: '115052', grade: '7', classId: '705', seat: '02', name: '李飛騰 (體)', gender: '男' },
+      { id: 'S80101', studentNo: '114001', grade: '8', classId: '801', seat: '01', name: '趙俊傑', gender: '男' },
+      { id: 'S80501', studentNo: '114051', grade: '8', classId: '805', seat: '01', name: '周子揚 (體)', gender: '男' },
+      { id: 'S90101', studentNo: '113001', grade: '9', classId: '901', seat: '01', name: '王威廷', gender: '男' }
+    ];
 
     let athleteRegistrations = [
       { id: 'R01', eventId: 'E701', grade: '7', classId: '705', studentId: 'S70501', name: '張強森 (體)', group: 1, lane: 3, leg: 1, isReserve: false },
@@ -2095,6 +1951,9 @@
       orientation: 'portrait',
       width: 794,
       height: 1123,
+      customWidth: 794,
+      customHeight: 1123,
+      customImageRatio: 794 / 1123,
       zoom: 0.8,
       bgImage: null,
       printBg: false,
@@ -2231,10 +2090,6 @@
     function handleAuthButtonClick() {
       if (currentUser) {
         currentUser = null;
-        authToken = '';
-        sessionStorage.removeItem(AUTH_TOKEN_KEY);
-        cloudSyncReady = false;
-        clearTimeout(cloudSaveTimer);
         document.getElementById('userRoleBadge').classList.add('hidden');
         document.getElementById('userRoleBadge').classList.remove('flex');
         document.getElementById('btnSwitchToPublic').classList.add('hidden');
@@ -2607,7 +2462,6 @@
       closeModal('eventEditModal');
       renderAdminEventsTable();
       syncPublicEventSelect();
-      saveCloudNow(false);
     }
 
     function deleteEvent(id) {
@@ -2618,7 +2472,6 @@
         renderAdminEventsTable();
         syncPublicEventSelect();
         showToast('賽事項目已安全刪除');
-        saveCloudNow(false);
       });
     }
 
@@ -2696,7 +2549,6 @@
       closeModal('announcementModal');
       renderAdminAnnouncementsTable();
       renderPublicAnnouncements();
-      saveCloudNow(false);
     }
 
     function deleteAnnouncement(id) {
@@ -2705,7 +2557,6 @@
         renderAdminAnnouncementsTable();
         renderPublicAnnouncements();
         showToast('公告已刪除');
-        saveCloudNow(false);
       });
     }
 
@@ -2752,8 +2603,8 @@
       classTypesMap[cls] = (classTypesMap[cls] === 'sports' ? 'regular' : 'sports');
       renderAdminStudents();
       renderAdminAccounts();
+      scheduleCloudStudentSync();
       showToast(`已切換 ${cls} 班為 ${classTypesMap[cls] === 'sports' ? '體育班' : '普通班'}`);
-      saveCloudNow(false);
     }
 
     function toggleSelectedClassType(targetType) {
@@ -2764,8 +2615,8 @@
       classTypesMap[cls] = targetType;
       renderAdminStudents();
       renderAdminAccounts();
+      scheduleCloudStudentSync();
       showToast(`已將 ${cls} 班設為 ${targetType === 'sports' ? '體育班' : '普通班'}`);
-      saveCloudNow(false);
     }
 
     // 同步「快速切換班級屬性」與上方全校班級資料。
@@ -2822,6 +2673,139 @@
       }
       result.push(current.trim());
       return result.map(c => c.replace(/^\uFEFF/, '').replace(/^["']|["']$/g, '').trim());
+    }
+
+    // ===== 全校學生名冊雲端同步 =====
+    // 目的：學生 CSV 匯入後，不再只存在單一電腦的瀏覽器記憶體。
+    // 每台電腦開啟 GitHub 網頁時，會先向 Google Apps Script 讀取最新名冊；
+    // 匯入／修改名冊後則自動回存雲端。
+    const STUDENT_CLOUD_CACHE_KEY = 'jialin_sports_students_cloud_cache_v1';
+    let studentCloudSyncTimer = null;
+    let studentCloudLastUpdatedAt = 0;
+
+    function getStudentCloudUrl() {
+      return (systemConfig.googleSheetUrl || '').trim();
+    }
+
+    function saveStudentCloudCache() {
+      try {
+        localStorage.setItem(STUDENT_CLOUD_CACHE_KEY, JSON.stringify({
+          studentsList, classAccounts, classTypesMap, updatedAt: studentCloudLastUpdatedAt
+        }));
+      } catch (err) {}
+    }
+
+    function restoreStudentCloudCache() {
+      try {
+        const raw = localStorage.getItem(STUDENT_CLOUD_CACHE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.studentsList) && data.studentsList.length) {
+          studentsList = data.studentsList;
+          if (data.classAccounts && typeof data.classAccounts === 'object') classAccounts = data.classAccounts;
+          if (data.classTypesMap && typeof data.classTypesMap === 'object') classTypesMap = data.classTypesMap;
+          studentCloudLastUpdatedAt = Number(data.updatedAt || 0);
+          return true;
+        }
+      } catch (err) {}
+      return false;
+    }
+
+    async function loadCloudStudentData(silent = false) {
+      const url = getStudentCloudUrl();
+      if (!url) return false;
+
+      try {
+        const response = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=loadStudents&_=' + Date.now(), {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+
+        if (!data || data.ok === false) throw new Error(data?.message || '雲端名冊讀取失敗');
+        if (Array.isArray(data.studentsList) && data.studentsList.length > 0) {
+          studentsList = data.studentsList;
+          if (data.classAccounts && typeof data.classAccounts === 'object') classAccounts = data.classAccounts;
+          if (data.classTypesMap && typeof data.classTypesMap === 'object') classTypesMap = data.classTypesMap;
+          studentCloudLastUpdatedAt = Number(data.updatedAt || Date.now());
+          saveStudentCloudCache();
+          syncQuickClassSelect();
+          renderAdminStudents();
+          renderAdminAccounts();
+          if (!silent) showToast(`已從雲端載入 ${studentsList.length} 筆學生資料`);
+          return true;
+        }
+      } catch (err) {
+        // 雲端暫時無法連線時，改用本機快取，不影響系統操作。
+        if (!silent) showToast('雲端名冊讀取失敗，已保留本機資料', 'error');
+      }
+      return false;
+    }
+
+    async function saveCloudStudentData(silent = true) {
+      const url = getStudentCloudUrl();
+      if (!url) return false;
+
+      const payload = {
+        action: 'saveStudents',
+        studentsList,
+        classAccounts,
+        classTypesMap,
+        updatedAt: Date.now()
+      };
+      studentCloudLastUpdatedAt = payload.updatedAt;
+      saveStudentCloudCache();
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json().catch(() => ({ ok: true }));
+        if (data && data.ok === false) throw new Error(data.message || '雲端儲存失敗');
+        if (!silent) showToast('學生名冊已同步至雲端');
+        return true;
+      } catch (err) {
+        if (!silent) showToast('雲端同步失敗，資料仍保留在本機', 'error');
+        return false;
+      }
+    }
+
+    function scheduleCloudStudentSync(delay = 600) {
+      clearTimeout(studentCloudSyncTimer);
+      saveStudentCloudCache();
+      studentCloudSyncTimer = setTimeout(() => saveCloudStudentData(true), delay);
+    }
+
+    async function testGoogleSheetSync() {
+      const input = document.getElementById('settingGoogleSheetUrl');
+      const url = input ? input.value.trim() : '';
+      if (!url) {
+        showToast('請先貼上 Google Apps Script Web App 網址！', 'error');
+        return;
+      }
+      systemConfig.googleSheetUrl = url;
+      try {
+        showToast('正在測試 Google Apps Script 雲端連線...');
+        const pingUrl = url + (url.includes('?') ? '&' : '?') + 'action=ping&_=' + Date.now();
+        const response = await fetch(pingUrl, { method: 'GET', cache: 'no-store', redirect: 'follow' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const ping = await response.json();
+        if (!ping || ping.ok !== true) throw new Error(ping && ping.error ? ping.error : 'Ping 失敗');
+        const loaded = await loadCloudStudentData(false);
+        if (loaded) {
+          showToast(`Google Apps Script 連線成功！已讀取 ${studentsList.length} 筆學生資料`);
+        } else {
+          showToast('Google Apps Script 已連線，但目前沒有可讀取的學生名冊；請先用整合版 GAS 部署後再匯入。', 'error');
+        }
+      } catch (err) {
+        console.error('GAS connection test failed:', err);
+        showToast('無法連線 Google Apps Script，請確認 Web App 已重新部署，且「誰可以存取」設為「任何人」。', 'error');
+      }
     }
 
     function downloadStudentCsvSample() {
@@ -2900,9 +2884,9 @@
         syncQuickClassSelect();
         renderAdminStudents();
         renderAdminAccounts();
+        scheduleCloudStudentSync();
         event.target.value = '';
-        showToast(`成功匯入 ${count} 筆學生資料，班級清單已同步！`);
-        saveCloudNow(true);
+        showToast(`成功匯入 ${count} 筆學生資料，班級清單已同步，正在上傳雲端！`);
       };
       reader.readAsText(file, 'UTF-8');
     }
@@ -3117,7 +3101,6 @@
       initRegFilters();
       renderAdminRegistrationsTable();
       showToast(regId ? `已更新 ${student.name} 的參賽資料` : `已新增 ${student.name} 參賽資料`);
-      saveCloudNow(false);
     }
 
     function deleteAthleteReg(id) {
@@ -3125,7 +3108,6 @@
         athleteRegistrations = athleteRegistrations.filter(r => r.id !== id);
         renderAdminRegistrationsTable();
         showToast('選手已移除');
-        saveCloudNow(false);
       });
     }
 
@@ -3148,7 +3130,6 @@
 
         renderAdminRegistrationsTable();
         showToast('已完成全校項目分組與道次序位抽籤編配！');
-        saveCloudNow(false);
       });
     }
 
@@ -3304,7 +3285,6 @@
       renderScoreEntryTable();
       renderPublicHeroCards();
       showToast('成績試算儲存成功！體育班特殊排名已自動核定。');
-      saveCloudNow(false);
     }
 
     function promotePrelimToFinal() {
@@ -3348,7 +3328,6 @@
         document.getElementById('scoreFilterStage').value = 'final';
         renderScoreEntryTable();
         showToast(`已成功將前 ${topQualifiers.length} 位選手晉級至決賽！`);
-          saveCloudNow(false);
       });
     }
 
@@ -3359,30 +3338,82 @@
     }
 
     function setCertOrientation(orientation) {
+      const oldW = certStudioState.width || 794;
+      const oldH = certStudioState.height || 1123;
+
       certStudioState.orientation = orientation;
       const btnPortrait = document.getElementById('btnCertPortrait');
       const btnLandscape = document.getElementById('btnCertLandscape');
+      const btnCustom = document.getElementById('btnCertCustom');
       const canvasBox = document.getElementById('certCanvasBox');
       const dimBadge = document.getElementById('canvasDimBadge');
+      const customHint = document.getElementById('certCustomSizeHint');
 
       if (orientation === 'portrait') {
         certStudioState.width = 794;
         certStudioState.height = 1123;
-        btnPortrait.className = 'py-2.5 rounded-xl font-bold bg-blue-900 text-white shadow';
-        btnLandscape.className = 'py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700';
-      } else {
+      } else if (orientation === 'landscape') {
         certStudioState.width = 1123;
         certStudioState.height = 794;
-        btnLandscape.className = 'py-2.5 rounded-xl font-bold bg-blue-900 text-white shadow';
-        btnPortrait.className = 'py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700';
+      } else {
+        certStudioState.width = certStudioState.customWidth || oldW;
+        certStudioState.height = certStudioState.customHeight || oldH;
       }
 
-      dimBadge.innerText = `${certStudioState.width} × ${certStudioState.height} px`;
-      canvasBox.style.width = `${certStudioState.width}px`;
-      canvasBox.style.height = `${certStudioState.height}px`;
+      if (btnPortrait) btnPortrait.className = orientation === 'portrait' ? 'py-2.5 rounded-xl font-bold bg-blue-900 text-white shadow' : 'py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700';
+      if (btnLandscape) btnLandscape.className = orientation === 'landscape' ? 'py-2.5 rounded-xl font-bold bg-blue-900 text-white shadow' : 'py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700';
+      if (btnCustom) btnCustom.className = orientation === 'custom' ? 'py-2.5 rounded-xl font-bold bg-amber-500 text-white shadow' : 'py-2.5 rounded-xl font-bold bg-slate-100 text-slate-700';
+      if (customHint) customHint.classList.toggle('hidden', orientation !== 'custom');
 
+      // A4 與自訂畫布切換時，連同既有元件一起等比例縮放，避免文字/圖層跑位。
+      const scaleX = certStudioState.width / oldW;
+      const scaleY = certStudioState.height / oldH;
+      if (Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001) {
+        certStudioState.elements.forEach(el => {
+          el.x = Math.round(el.x * scaleX);
+          el.y = Math.round(el.y * scaleY);
+          el.width = Math.max(20, Math.round(el.width * scaleX));
+          el.height = Math.max(20, Math.round(el.height * scaleY));
+        });
+      }
+
+      if (dimBadge) {
+        dimBadge.innerText = orientation === 'custom'
+          ? `自訂 ${certStudioState.width} × ${certStudioState.height} px`
+          : `${certStudioState.width} × ${certStudioState.height} px`;
+      }
+      const canvasTitle = document.getElementById('certCanvasTitle');
+      if (canvasTitle) {
+        canvasTitle.innerText = orientation === 'custom'
+          ? '自訂比例畫布所見即所得預覽'
+          : 'A4 畫布所見即所得預覽';
+      }
+      if (canvasBox) {
+        canvasBox.style.width = `${certStudioState.width}px`;
+        canvasBox.style.height = `${certStudioState.height}px`;
+      }
+
+      applyCertBackgroundFill();
       applyCanvasZoom();
       renderCertStudioCanvas();
+    }
+
+    function activateCertCustomMode() {
+      if (!certStudioState.bgImage || !certStudioState.customWidth || !certStudioState.customHeight) {
+        showToast('請先上傳任意圖片，系統會自動取得圖片比例。', 'error');
+        return;
+      }
+      setCertOrientation('custom');
+    }
+
+    function applyCertBackgroundFill() {
+      const bgContainer = document.getElementById('certCanvasBg');
+      if (!bgContainer) return;
+      bgContainer.style.backgroundImage = certStudioState.bgImage ? `url(${certStudioState.bgImage})` : 'none';
+      // 關鍵：不再使用 bg-contain，底圖永遠完整填滿畫布，避免 A4 預覽上下/左右出現白色空帶。
+      bgContainer.style.backgroundSize = '100% 100%';
+      bgContainer.style.backgroundRepeat = 'no-repeat';
+      bgContainer.style.backgroundPosition = 'center';
     }
 
     function changeCanvasZoom(delta) {
@@ -3403,9 +3434,30 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         certStudioState.bgImage = e.target.result;
-        const bgContainer = document.getElementById('certCanvasBg');
-        if (bgContainer) bgContainer.style.backgroundImage = `url(${certStudioState.bgImage})`;
-        showToast('已載入獎狀實體校正底圖！');
+
+        const img = new Image();
+        img.onload = function() {
+          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+            // 以預覽可操作的邏輯像素建立自訂畫布，但完全保留原始圖片寬高比。
+            const maxDimension = 1123;
+            const ratio = img.naturalWidth / img.naturalHeight;
+            let customW, customH;
+            if (ratio >= 1) {
+              customW = maxDimension;
+              customH = Math.max(1, Math.round(maxDimension / ratio));
+            } else {
+              customH = maxDimension;
+              customW = Math.max(1, Math.round(maxDimension * ratio));
+            }
+            certStudioState.customWidth = customW;
+            certStudioState.customHeight = customH;
+            certStudioState.customImageRatio = ratio;
+            setCertOrientation('custom');
+            applyCertBackgroundFill();
+            showToast(`已載入底圖，畫布已自動調整為圖片比例 ${img.naturalWidth} × ${img.naturalHeight}。`);
+          }
+        };
+        img.src = certStudioState.bgImage;
       };
       reader.readAsDataURL(file);
     }
@@ -3769,7 +3821,6 @@
       } catch (e) {
         console.warn('無法儲存獎狀列印紀錄：', e);
       }
-      if (!applyingCloudState) saveCloudNow(false);
     }
 
     function getCertPrintRecord(res) {
@@ -4039,8 +4090,11 @@
         }).join('');
 
         let bgStyle = (certStudioState.printBg && certStudioState.bgImage) ? `background-image: url(${certStudioState.bgImage}); background-size: 100% 100%; background-repeat: no-repeat;` : '';
+        const pageWmm = (certStudioState.width * 25.4 / 96).toFixed(2);
+        const pageHmm = (certStudioState.height * 25.4 / 96).toFixed(2);
 
         printHtml += `
+          <style>@page { size: ${pageWmm}mm ${pageHmm}mm; margin: 0; } @media print { html, body { margin: 0 !important; padding: 0 !important; } }</style>
           <div class="page-break" style="position: relative; width: ${certStudioState.width}px; height: ${certStudioState.height}px; margin: 0 auto; overflow: hidden; page-break-after: always; background-color: #ffffff; ${bgStyle}">
             ${elementsHtml}
           </div>
@@ -4118,77 +4172,97 @@
       const grade = cls.charAt(0);
       const classEvents = eventsList.filter(e => e.grade === grade || e.grade === 'all_school');
       const assigned = athleteRegistrations.filter(r => r.classId === cls);
+      const isBlank = docStatus === '班級空白報名聯';
+      const classPassword = classAccounts[cls] || '';
 
       let rowsHtml = classEvents.map(ev => {
         const evAssigned = assigned.filter(r => r.eventId === ev.id);
-        const rosterStr = evAssigned.length > 0 ? evAssigned.map(a => `${a.name}${a.isReserve ? '(候)' : ''}`).join('、') : '（未派選手）';
-        const countStr = `${evAssigned.length} 人`;
+        const rosterStr = isBlank
+          ? '　　　　　　　　　'
+          : (evAssigned.length > 0 ? evAssigned.map(a => `${a.name}${a.isReserve ? '(候)' : ''}`).join('、') : '（未派選手）');
+        const countStr = isBlank ? '　　 人' : `${evAssigned.length} 人`;
+        const quotaStr = `${ev.regularQuota || 0}${ev.reserveQuota ? `+${ev.reserveQuota}` : ''} 人`;
 
         return `
           <tr>
-            <td class="border border-slate-950 p-2 text-center font-bold">${ev.grade === 'all_school' ? '全校' : ev.grade + '年級'}</td>
-            <td class="border border-slate-950 p-2 font-black">${ev.name}</td>
-            <td class="border border-slate-950 p-2 text-center font-bold">${ev.category}</td>
-            <td class="border border-slate-950 p-2 text-center font-mono">1 ~ ${ev.regularQuota} 人</td>
-            <td class="border border-slate-950 p-2 font-bold">${rosterStr}</td>
-            <td class="border border-slate-950 p-2 text-center font-mono font-bold">${countStr}</td>
-            <td class="border border-slate-950 p-2 text-center font-mono font-bold">[   ]</td>
-            <td class="border border-slate-950 p-2"></td>
+            <td class="border border-slate-950 px-1.5 py-1 text-center font-bold">${ev.grade === 'all_school' ? '全校' : ev.grade + '年級'}</td>
+            <td class="border border-slate-950 px-1.5 py-1 font-black">${ev.name}</td>
+            <td class="border border-slate-950 px-1.5 py-1 text-center font-bold">${ev.category}</td>
+            <td class="border border-slate-950 px-1.5 py-1 text-center font-mono">${quotaStr}</td>
+            <td class="border border-slate-950 px-1.5 py-1 font-bold ${isBlank ? 'text-slate-500' : ''}">${rosterStr}</td>
+            <td class="border border-slate-950 px-1.5 py-1 text-center font-mono font-bold">${countStr}</td>
+            <td class="border border-slate-950 px-1.5 py-1 text-center font-mono">[   ]</td>
+            <td class="border border-slate-950 px-1.5 py-1"></td>
           </tr>
         `;
       }).join('');
 
+      const noticeHtml = isBlank ? `
+        <div class="border border-slate-950 rounded-xl px-2.5 py-2 my-1.5 text-[10px] leading-snug">
+          <div class="font-black mb-0.5">【班級空白報名聯使用說明】</div>
+          <div>請先由班級討論、手寫編排參賽學生，再由班級登入系統完成正式線上報名。</div>
+          <div class="mt-1 grid grid-cols-2 gap-x-4 font-black">
+            <span>班級登入帳號：${cls}</span>
+            <span>班級登入密碼：${classPassword || '（尚未設定）'}</span>
+          </div>
+        </div>` : `
+        <div class="border border-slate-950 rounded-xl px-2.5 py-2 my-1.5 text-[10px] leading-snug">
+          <div class="font-black mb-0.5">【導師確認簽章須知與大會公告】</div>
+          <div>1. 請導師核對全班參賽選手無誤後於下方簽名聯核章。</div>
+          <div>2. 如選手因病請假換人，請由導師簽註於備註欄並送交學務處體育組。</div>
+          <div>3. 請於規定時間內繳回本單至體育組備查。</div>
+        </div>`;
+
+      const signaturesHtml = isBlank ? `
+        <div class="grid grid-cols-3 gap-3 text-center text-[10px] font-bold pt-1">
+          <div>體育股長：________________</div>
+          <div>班級導師：________________</div>
+          <div>班級確認日期：__________</div>
+        </div>` : `
+        <div class="grid grid-cols-4 gap-2 text-center text-[10px] font-bold pt-1">
+          <div>體育股長簽章：________________</div>
+          <div>體育老師簽章：________________</div>
+          <div>導師確認無誤簽核：________________</div>
+          <div>體育組收件複核：________________</div>
+        </div>`;
+
       return `
-        <div id="classConfirmSheet" class="page-break p-8 bg-white text-slate-950 text-xs font-sans min-h-[1050px] flex flex-col justify-between" style="box-sizing: border-box;">
+        <div id="classConfirmSheet" class="page-break bg-white text-slate-950 text-[10px] font-sans min-h-[1050px] flex flex-col justify-between px-5 py-4" style="box-sizing: border-box;">
           <div>
-            <div class="text-center pb-2">
-              <h1 class="text-base font-black">${systemConfig.schoolName}</h1>
-              <h2 class="text-3xl font-black font-serif-tc my-1.5">${systemConfig.academicYear}</h2>
-              <h3 class="text-lg font-black tracking-wide">班級參賽名冊確認單暨導師核章聯</h3>
+            <div class="text-center pb-1">
+              <h1 class="text-sm font-black">${systemConfig.schoolName}</h1>
+              <h2 class="text-2xl font-black font-serif-tc my-0.5">${systemConfig.academicYear}</h2>
+              <h3 class="text-base font-black tracking-wide">班級參賽名冊確認單暨導師核章聯</h3>
             </div>
 
-            <!-- Double-box top status bar -->
-            <div class="border-2 border-slate-950 rounded-2xl p-3 my-3 flex items-center justify-between text-sm">
-              <div class="font-black text-base">班級代碼：<span class="underline underline-offset-4 decoration-2">${cls} 班</span></div>
-              <div class="font-bold">指派總人數：<span class="font-black text-base font-mono">${assigned.length}</span> 人次</div>
-              <div class="border border-slate-950 px-3 py-1 rounded-lg font-black text-xs">${docStatus}</div>
+            <div class="border-2 border-slate-950 rounded-xl px-2.5 py-1.5 my-1.5 flex items-center justify-between text-xs">
+              <div class="font-black">班級代碼：<span class="underline underline-offset-2 decoration-2">${cls} 班</span></div>
+              <div class="font-bold">指派總人數：<span class="font-black font-mono">${isBlank ? '待填' : assigned.length}</span> 人次</div>
+              <div class="border border-slate-950 px-2 py-0.5 rounded font-black text-[10px]">${docStatus}</div>
             </div>
 
-            <!-- Notice Box -->
-            <div class="border border-slate-950 rounded-2xl p-3 my-3 text-xs leading-relaxed">
-              <div class="font-black mb-1">【導師確認簽章須知與大會公告】：</div>
-              <div>1. 請導師核對全班參賽選手無誤後於下方簽名聯核章。</div>
-              <div>2. 如選手因病請假換人，請由導師簽註於備註欄並送交學務處體育組。</div>
-              <div>3. 請於規定時間內繳回本單至體育組備查。</div>
-            </div>
+            ${noticeHtml}
 
-            <!-- 8-column Table -->
-            <table class="w-full border-collapse border-2 border-slate-950 text-xs my-3">
+            <table class="w-full border-collapse border-2 border-slate-950 text-[9px] my-1.5">
               <thead class="bg-slate-100 font-black">
                 <tr>
-                  <th class="border border-slate-950 p-2 text-center w-14">年級</th>
-                  <th class="border border-slate-950 p-2 text-left w-36">比賽項目</th>
-                  <th class="border border-slate-950 p-2 text-center w-16">類別</th>
-                  <th class="border border-slate-950 p-2 text-center w-24">名額規範</th>
-                  <th class="border border-slate-950 p-2 text-left">已指派選手名冊</th>
-                  <th class="border border-slate-950 p-2 text-center w-16">報名數</th>
-                  <th class="border border-slate-950 p-2 text-center w-14">初核</th>
-                  <th class="border border-slate-950 p-2 text-center w-20">異動備註</th>
+                  <th class="border border-slate-950 px-1 py-1 text-center w-12 whitespace-nowrap">年級</th>
+                  <th class="border border-slate-950 px-1 py-1 text-left w-32 whitespace-nowrap">比賽項目</th>
+                  <th class="border border-slate-950 px-1 py-1 text-center w-14 whitespace-nowrap">類別</th>
+                  <th class="border border-slate-950 px-1 py-1 text-center w-16 whitespace-nowrap">名額</th>
+                  <th class="border border-slate-950 px-1 py-1 text-left whitespace-nowrap">${isBlank ? '手寫參賽學生名冊' : '已指派選手名冊'}</th>
+                  <th class="border border-slate-950 px-1 py-1 text-center w-12 whitespace-nowrap">報名數</th>
+                  <th class="border border-slate-950 px-1 py-1 text-center w-11 whitespace-nowrap">初核</th>
+                  <th class="border border-slate-950 px-1 py-1 text-center w-14 whitespace-nowrap">異動備註</th>
                 </tr>
               </thead>
               <tbody>${rowsHtml}</tbody>
             </table>
           </div>
 
-          <!-- Cut Line and 4 Signatures -->
           <div>
-            <div class="border-t-2 border-dashed border-slate-500 my-4"></div>
-            <div class="grid grid-cols-4 gap-4 text-center text-xs font-bold pt-2">
-              <div>體育股長簽章：<br><br><br>____________________</div>
-              <div>體育老師簽章：<br><br><br>____________________</div>
-              <div>導師確認無誤簽核：<br><br><br>____________________</div>
-              <div>體育組收件複核：<br><br><br>____________________</div>
-            </div>
+            <div class="border-t border-dashed border-slate-500 my-2"></div>
+            ${signaturesHtml}
           </div>
         </div>
       `;
@@ -4691,86 +4765,41 @@
       }
     }
 
-    async function populateClassLoginSelect() {
+    function populateClassLoginSelect() {
       const sel = document.getElementById('classLoginSelect');
       if (!sel) return;
-
-      /*
-       * 登入班級清單的唯一來源改為「班級帳號清單 classAccounts」。
-       * 原本使用 classTypesMap，會被舊的 701~905 預設值限制住；
-       * 即使 CSV 已匯入 706~710、806~811、906~914，登入畫面仍看不到。
-       *
-       * classAccounts 在：
-       * 1. 雲端公開資料載入時，由 data.classIds 建立
-       * 2. 匯入學生 CSV 時，由每筆學生的 classId 建立
-       *
-       * 因此可以自動支援名冊中的所有班級，而不需要把班級寫死在 HTML。
-       */
-      const classIds = Object.keys(classAccounts || {})
-        .map(c => String(c).trim())
-        .filter(Boolean);
-
-      // 再以目前學生名冊補齊本機尚未建立帳號的班級。
-      // 這讓「剛匯入 CSV、尚未完成雲端同步」的情況也能立即選班。
-      (studentsList || []).forEach(student => {
-        const cls = String(student?.classId || '').trim();
-        if (cls && !classIds.includes(cls)) classIds.push(cls);
+      sel.innerHTML = '';
+      Object.keys(classAccounts).forEach(cls => {
+        sel.innerHTML += `<option value="${cls}">${cls} 班</option>`;
       });
-
-      classIds.sort((a, b) =>
-        String(a).localeCompare(String(b), 'zh-Hant', { numeric: true })
-      );
-
-      sel.innerHTML = classIds.length
-        ? classIds.map(cls => `<option value="${cls}">${cls} 班</option>`).join('')
-        : '<option value="">目前尚無班級資料</option>';
-
-      if (classIds.length) sel.value = classIds[0];
     }
 
-    async function executeLogin() {
+    function executeLogin() {
       const formAdmin = document.getElementById('loginFormAdmin');
       const isAdmin = !formAdmin.classList.contains('hidden');
-      try {
-        const username = isAdmin
-          ? document.getElementById('adminAccountInput').value.trim()
-          : document.getElementById('classLoginSelect').value;
-        const password = isAdmin
-          ? document.getElementById('adminPasswordInput').value
-          : document.getElementById('classPasswordInput').value;
-        if (!username || !password) {
-          showToast('請輸入完整登入資訊。', 'error');
-          return;
-        }
-        showToast('正在進行安全驗證...');
-        const result = await (async () => {
-          const r = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'login', username, password }),
-            cache: 'no-store'
-          });
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          const x = await r.json();
-          if (!x.ok) throw new Error(x.error || '帳號或密碼錯誤');
-          return x;
-        })();
 
-        authToken = result.token;
-        sessionStorage.setItem(AUTH_TOKEN_KEY, authToken);
-        currentUser = result.user;
-        await loadPrivateStateAfterLogin();
-        closeModal('loginModal');
-        if (currentUser.role === 'admin') {
+      if (isAdmin) {
+        const u = document.getElementById('adminAccountInput').value.trim();
+        const p = document.getElementById('adminPasswordInput').value.trim();
+        if (u === 'admin' && p === 'admin888') {
+          currentUser = { role: 'admin' };
+          closeModal('loginModal');
           showAdminDashboard();
-          showToast('大會管理員安全驗證登入成功！');
+          showToast('大會管理員驗證登入成功！');
         } else {
-          showClassPortal(currentUser.classId);
-          showToast(`已安全登入 ${currentUser.classId} 班專區！`);
+          showToast('帳號或密碼錯誤！', 'error');
         }
-      } catch (e) {
-        console.error(e);
-        showToast(e.message || '登入失敗，請確認帳號密碼。', 'error');
+      } else {
+        const cls = document.getElementById('classLoginSelect').value;
+        const pwd = document.getElementById('classPasswordInput').value.trim();
+        if (classAccounts[cls] && classAccounts[cls] === pwd) {
+          currentUser = { role: 'class', classId: cls };
+          closeModal('loginModal');
+          showClassPortal(cls);
+          showToast(`已登入 ${cls} 班專區！`);
+        } else {
+          showToast('班級密碼不符，請向體育組確認！', 'error');
+        }
       }
     }
 
@@ -4812,7 +4841,6 @@
       closeModal('batchPasswordModal');
       renderAdminAccounts();
       showToast('已批次生成全校班級專屬密碼！');
-      saveCloudNow(false);
     }
 
     function renderAdminAccounts() {
@@ -4844,24 +4872,11 @@
       if (sYear) systemConfig.academicYear = sYear.value.trim();
       if (sStart) systemConfig.regStartDate = sStart.value;
       if (sEnd) systemConfig.regEndDate = sEnd.value;
-      systemConfig.googleSheetUrl = APPS_SCRIPT_URL;
+      if (sSheet) systemConfig.googleSheetUrl = sSheet.value.trim();
 
       applySystemSettingsToUI();
       closeModal('systemSettingsModal');
       showToast('大會參數已成功儲存套用！');
-      saveCloudNow(true);
-    }
-
-    async function testGoogleSheetSync() {
-      try {
-        showToast('正在測試 Google Apps Script 雲端連線...');
-        const result = await cloudGetState();
-        if (!result?.ok) throw new Error('API 回應異常');
-        showToast('Google Apps Script 連線正常！');
-      } catch (e) {
-        console.error(e);
-        showToast('雲端連線測試失敗，請確認 Apps Script 已部署。', 'error');
-      }
     }
 
     function applySystemSettingsToUI() {
@@ -4885,7 +4900,7 @@
       if (sYear) sYear.value = systemConfig.academicYear;
       if (sStart) sStart.value = systemConfig.regStartDate;
       if (sEnd) sEnd.value = systemConfig.regEndDate;
-      if (sSheet) { sSheet.value = APPS_SCRIPT_URL; sSheet.readOnly = true; }
+      if (sSheet) sSheet.value = systemConfig.googleSheetUrl || 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec';
     }
 
     function downloadFullBackupJson() {
@@ -4923,7 +4938,6 @@
         applySystemSettingsToUI();
         switchAdminTab('events');
         showToast(`已順利交接至 ${newYear}！`);
-          saveCloudNow(true);
       });
     }
 
@@ -4970,20 +4984,22 @@
     // Initialize application on DOM ready
     document.addEventListener('DOMContentLoaded', async () => {
       loadCertPrintRegistry();
-
-      // 先載入雲端主資料，再建立畫面，確保不同電腦看到相同資料。
-      await syncCloudOnStartup();
-
       applySystemSettingsToUI();
+
+      // 先讀取本機快取，再嘗試向 Google Apps Script 取得全校最新名冊。
+      restoreStudentCloudCache();
+      syncQuickClassSelect(false);
+      renderAdminStudents();
+      renderAdminAccounts();
+      await loadCloudStudentData(true);
+
       refreshEventCategoryDropdowns();
       refreshPublicCategoryButtons();
       switchPublicTab('announcements');
       setCertOrientation('portrait');
 
-      syncQuickClassSelect(false);
-      initRegFilters();
-      initScoreFilters();
-      // 不再背景輪詢；只有開啟網站與使用者儲存時才連線。
+      // 已開啟的電腦每 30 秒重新抓一次，其他電腦匯入後可自動取得最新名冊。
+      setInterval(() => loadCloudStudentData(true), 30000);
     });
   </script>
 </body>
