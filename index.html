@@ -825,6 +825,18 @@
               <i class="fa-solid fa-key mr-2"></i>批次生成密碼
             </button>
           </div>
+          <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div class="font-black text-indigo-950">系統登入帳密管理</div>
+                <div class="text-xs text-indigo-700 mt-1">管理「大會管理員」與「成績輸入」兩組系統帳密。</div>
+              </div>
+              <button onclick="openAuthAccountModal()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow">
+                <i class="fa-solid fa-user-lock mr-2"></i>修改系統帳密
+              </button>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4" id="adminClassAccountsGrid">
             <!-- Injected via renderAdminAccounts -->
           </div>
@@ -1012,14 +1024,21 @@
                 <div id="accBackup" class="accordion-content p-4 space-y-3.5 text-sm bg-white">
                   <div>
                     <label class="block font-bold text-slate-700 mb-1.5">上傳本機字型 (.ttf / .otf / .woff)：</label>
-                    <input type="file" id="certFontInput" accept=".ttf,.otf,.woff" onchange="handleCertFontUpload(event)" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+                    <input type="file" id="certFontInput" accept=".ttf,.otf,.woff,.woff2" onchange="handleCertFontUpload(event)" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
                   </div>
-                  <div class="grid grid-cols-2 gap-2.5 pt-2 border-t">
-                    <button onclick="exportCertTemplateJson()" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold">匯出版面專案</button>
-                    <label class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-center cursor-pointer">
-                      匯入專案
-                      <input type="file" accept=".json" class="hidden" onchange="importCertTemplateJson(event)">
-                    </label>
+                  <div class="pt-2 border-t space-y-2">
+                    <div class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                      <i class="fa-solid fa-box-archive mr-1"></i><b>獨立獎狀模板備份</b>：備份目前獎狀的版面、底圖、尺寸、文字、元件設定，並<b>連同自訂字型檔案一起打包</b>；<b>不會帶走全校名冊、報名、成績或獎狀列印紀錄</b>。可跨年度、跨電腦完整移植。
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                      <button onclick="exportCertTemplateJson()" class="p-2.5 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 rounded-xl font-black flex items-center justify-center">
+                        <i class="fa-solid fa-file-export mr-2"></i>獨立匯出獎狀模板
+                      </button>
+                      <label class="p-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 border border-indigo-200 rounded-xl font-black text-center cursor-pointer flex items-center justify-center">
+                        <i class="fa-solid fa-file-import mr-2"></i>匯入獎狀模板
+                        <input type="file" accept=".json,application/json" class="hidden" onchange="importCertTemplateJson(event)">
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1206,19 +1225,32 @@
         <button onclick="closeModal('loginModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
-      <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl">
+      <div class="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-2xl">
         <button onclick="switchLoginRole('admin')" id="tabBtnLoginAdmin" class="py-2.5 rounded-xl text-sm font-bold bg-white text-slate-900 shadow">大會管理員</button>
+        <button onclick="switchLoginRole('score')" id="tabBtnLoginScore" class="py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700">成績輸入</button>
         <button onclick="switchLoginRole('class')" id="tabBtnLoginClass" class="py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700">班級導師 / 股長</button>
       </div>
 
       <div id="loginFormAdmin" class="space-y-3.5 text-sm">
         <div>
           <label class="block font-bold text-slate-700 mb-1">管理員帳號：</label>
-          <input type="text" id="adminAccountInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-800">
+          <input type="text" id="adminAccountInput" autocomplete="username" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-800">
         </div>
         <div>
           <label class="block font-bold text-slate-700 mb-1">管理員密碼：</label>
-          <input type="password" id="adminPasswordInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-800">
+          <input type="password" id="adminPasswordInput" autocomplete="current-password" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-800">
+        </div>
+      </div>
+
+      <div id="loginFormScore" class="space-y-3.5 text-sm hidden">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">成績輸入帳號：</label>
+          <input type="text" id="scoreAccountInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">成績輸入密碼：</label>
+          <input type="password" id="scorePasswordInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-800">
+          <p class="text-xs text-slate-400 mt-1">此帳號僅可進入「成績試算」</p>
         </div>
       </div>
 
@@ -1832,6 +1864,33 @@
     </div>
   </div>
 
+  <!-- Modal：系統帳密管理 -->
+  <div id="authAccountModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 space-y-5">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-extrabold text-slate-900 text-lg flex items-center"><i class="fa-solid fa-user-shield text-indigo-600 mr-2"></i>系統登入帳密管理</h3>
+        <button onclick="closeModal('authAccountModal')" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">僅大會管理員可以修改。修改後立即套用於本機瀏覽器。</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+          <div class="font-black text-slate-800">大會管理員</div>
+          <input id="authAdminUsernameInput" type="text" placeholder="管理員帳號" class="w-full bg-white border border-slate-300 rounded-xl p-3 font-bold">
+          <input id="authAdminPasswordInput" type="password" placeholder="管理員密碼" class="w-full bg-white border border-slate-300 rounded-xl p-3 font-bold">
+        </div>
+        <div class="p-4 bg-cyan-50 rounded-2xl border border-cyan-200 space-y-3">
+          <div class="font-black text-cyan-950">成績輸入</div>
+          <input id="authScoreUsernameInput" type="text" placeholder="成績輸入帳號" class="w-full bg-white border border-slate-300 rounded-xl p-3 font-bold">
+          <input id="authScorePasswordInput" type="password" placeholder="成績輸入密碼" class="w-full bg-white border border-slate-300 rounded-xl p-3 font-bold">
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button onclick="closeModal('authAccountModal')" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold">取消</button>
+        <button onclick="saveAuthAccountSettings()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black shadow">儲存帳密</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal 11: 自訂 Confirm 對話盒 (全面取代原生 confirm) -->
   <div id="confirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-4">
@@ -1865,7 +1924,27 @@
 
   <script>
     /* Global Application State */
-    let currentUser = null; // null: 訪客, { role: 'admin' }, { role: 'class', classId: '701' }
+    let currentUser = null; // null: 訪客, { role: 'admin' }, { role: 'score' }, { role: 'class', classId: '701' }
+    const AUTH_STORAGE_KEY = 'jialin_sports_auth_accounts_v1';
+    let authAccounts = {
+      admin: { username: 'admin', password: 'admin888' },
+      score: { username: 'score', password: 'score888' }
+    };
+
+    function loadAuthAccounts() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved.admin && saved.score) authAccounts = saved;
+        }
+      } catch (err) {}
+    }
+
+    function saveAuthAccounts() {
+      try { localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authAccounts)); } catch (err) {}
+    }
+    loadAuthAccounts();
     let publicActiveTab = 'announcements';
     let publicActiveCategory = 'all';
     let publicActiveStage = 'final';
@@ -2027,6 +2106,7 @@
     }
 
     function showAdminDashboard() {
+      restoreAdminTabsForAdmin();
       document.getElementById('viewPublicBoard').classList.add('hidden');
       document.getElementById('viewAdminDashboard').classList.remove('hidden');
       document.getElementById('viewClassPortal').classList.add('hidden');
@@ -2100,10 +2180,16 @@
         document.getElementById('userRoleBadge').classList.remove('flex');
         document.getElementById('btnSwitchToPublic').classList.add('hidden');
         document.getElementById('btnTopAuthText').innerText = '登入';
+        restoreAdminTabsForAdmin();
         showPublicView();
         showToast('已安全登出系統');
       } else {
         openModal('loginModal');
+        document.getElementById('adminAccountInput').value = authAccounts.admin.username;
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('scoreAccountInput').value = authAccounts.score.username;
+        document.getElementById('scorePasswordInput').value = '';
+        switchLoginRole('admin');
         populateClassLoginSelect();
       }
     }
@@ -2254,6 +2340,11 @@
     }
 
     function switchAdminTab(tabKey) {
+      // 成績輸入人員只能使用「成績試算」，禁止切換到任何其他管理功能。
+      if (currentUser && currentUser.role === 'score' && tabKey !== 'scores') {
+        showToast('成績輸入人員僅能使用「成績試算」功能。', 'error');
+        tabKey = 'scores';
+      }
       document.querySelectorAll('.admin-panel').forEach(p => p.classList.add('hidden'));
       document.querySelectorAll('.admin-tab-btn').forEach(b => {
         b.className = 'admin-tab-btn px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition flex items-center';
@@ -3778,49 +3869,71 @@
       syncActiveElementToInspector();
     }
 
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer); let binary = ''; const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      return btoa(binary);
+    }
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64); const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i); return bytes.buffer;
+    }
+    async function restoreCertCustomFonts() {
+      const assets = certStudioState.customFontAssets;
+      if (!assets || typeof assets !== 'object') return 0;
+      if (!Array.isArray(certStudioState.customFonts)) certStudioState.customFonts = [];
+      let count = 0;
+      for (const fontName of certStudioState.customFonts) {
+        const asset = assets[fontName]; if (!asset?.base64) continue;
+        try { const font = new FontFace(fontName, base64ToArrayBuffer(asset.base64), asset.descriptors || {}); await font.load(); document.fonts.add(font); count++; }
+        catch (err) { console.warn('獎狀自訂字型還原失敗：', fontName, err); }
+      }
+      return count;
+    }
     function handleCertFontUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const fontName = 'CustomFont_' + Date.now();
+      const file = event.target.files[0]; if (!file) return;
+      const fontName = 'CustomFont_' + Date.now(); const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const font = new FontFace(fontName, e.target.result); await font.load(); document.fonts.add(font);
+          if (!Array.isArray(certStudioState.customFonts)) certStudioState.customFonts = [];
+          if (!certStudioState.customFontAssets || typeof certStudioState.customFontAssets !== 'object') certStudioState.customFontAssets = {};
+          certStudioState.customFonts.push(fontName);
+          certStudioState.customFontAssets[fontName] = { fileName: file.name, mimeType: file.type || 'font/ttf', base64: arrayBufferToBase64(e.target.result), descriptors: {} };
+          showToast(`自訂字型「${file.name}」載入成功，已納入獎狀模板備份！`);
+        } catch (err) { showToast('字型載入失敗，請確認檔案格式！', 'error'); }
+      };
+      reader.readAsArrayBuffer(file); event.target.value = '';
+    }
+    function exportCertTemplateJson() {
+      const stateCopy = JSON.parse(JSON.stringify(certStudioState));
+      if (!stateCopy.customFontAssets || typeof stateCopy.customFontAssets !== 'object') stateCopy.customFontAssets = {};
+      const template = { backupType: 'jialin-certificate-template', version: 2, exportedAt: new Date().toISOString(), templateName: '佳林國中獎狀排版模板（含自訂字型）', includes: ['certStudioState', 'customFontAssets'], certStudioState: stateCopy };
+      const dataStr = JSON.stringify(template, null, 2); const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
+      a.download = `佳林國中_獎狀模板_含自訂字型_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      const fontCount = Object.keys(stateCopy.customFontAssets).length;
+      showToast(`已匯出獎狀模板${fontCount ? `，已打包 ${fontCount} 個自訂字型` : ''}（不含全校資料與列印紀錄）！`);
+    }
+    async function importCertTemplateJson(event) {
+      const file = event.target.files[0]; if (!file) return;
       const reader = new FileReader();
       reader.onload = async function(e) {
         try {
-          const font = new FontFace(fontName, e.target.result);
-          await font.load();
-          document.fonts.add(font);
-          certStudioState.customFonts.push(fontName);
-          showToast(`自訂字型載入成功！`);
-        } catch (err) {
-          showToast('字型載入失敗，請確認檔案格式！', 'error');
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function exportCertTemplateJson() {
-      const dataStr = JSON.stringify(certStudioState, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `獎狀排版版型_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast('已匯出版面專案！');
-    }
-
-    function importCertTemplateJson(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          certStudioState = { ...certStudioState, ...JSON.parse(e.target.result) };
-          setCertOrientation(certStudioState.orientation || 'portrait');
-          showToast('成功匯入獎狀版型專案！');
-        } catch (err) {
-          showToast('專案格式錯誤，無法解析！', 'error');
-        }
+          const parsed = JSON.parse(e.target.result);
+          const incoming = parsed?.backupType === 'jialin-certificate-template' ? parsed.certStudioState : parsed;
+          if (!incoming || typeof incoming !== 'object' || !Array.isArray(incoming.elements)) throw new Error('不是有效的獎狀模板檔');
+          certStudioState = { ...certStudioState, ...incoming, elements: incoming.elements };
+          if (!Array.isArray(certStudioState.customFonts)) certStudioState.customFonts = [];
+          if (!certStudioState.customFontAssets || typeof certStudioState.customFontAssets !== 'object') certStudioState.customFontAssets = {};
+          certStudioState.width = Number(certStudioState.width) || 794; certStudioState.height = Number(certStudioState.height) || 1123;
+          certStudioState.customWidth = Number(certStudioState.customWidth) || certStudioState.width; certStudioState.customHeight = Number(certStudioState.customHeight) || certStudioState.height;
+          setCertOrientation(certStudioState.orientation || 'portrait'); applyCertBackgroundFill();
+          const restoredFontCount = await restoreCertCustomFonts(); renderCertStudioCanvas();
+          showToast(`成功匯入獨立獎狀模板${restoredFontCount ? `，並還原 ${restoredFontCount} 個自訂字型` : ''}；目前學校名冊、成績與列印紀錄均未被覆蓋。`);
+        } catch (err) { console.error(err); showToast('獎狀模板格式錯誤，無法匯入！', 'error'); }
+        finally { event.target.value = ''; }
       };
       reader.readAsText(file);
     }
@@ -4831,20 +4944,25 @@
 
     function switchLoginRole(role) {
       const btnAdmin = document.getElementById('tabBtnLoginAdmin');
+      const btnScore = document.getElementById('tabBtnLoginScore');
       const btnClass = document.getElementById('tabBtnLoginClass');
       const formAdmin = document.getElementById('loginFormAdmin');
+      const formScore = document.getElementById('loginFormScore');
       const formClass = document.getElementById('loginFormClass');
-
+      [btnAdmin, btnScore, btnClass].forEach(btn => {
+        if (btn) btn.className = 'py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-500 hover:text-slate-700';
+      });
+      [formAdmin, formScore, formClass].forEach(form => { if (form) form.classList.add('hidden'); });
       if (role === 'admin') {
         btnAdmin.className = 'py-2.5 rounded-xl text-sm font-bold bg-white text-slate-900 shadow';
-        btnClass.className = 'py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700';
         formAdmin.classList.remove('hidden');
-        formClass.classList.add('hidden');
+      } else if (role === 'score') {
+        btnScore.className = 'py-2.5 rounded-xl text-sm font-bold bg-white text-slate-900 shadow';
+        formScore.classList.remove('hidden');
+        document.getElementById('scoreAccountInput').value = authAccounts.score.username;
       } else {
         btnClass.className = 'py-2.5 rounded-xl text-sm font-bold bg-white text-slate-900 shadow';
-        btnAdmin.className = 'py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700';
         formClass.classList.remove('hidden');
-        formAdmin.classList.add('hidden');
       }
     }
 
@@ -4859,19 +4977,28 @@
 
     function executeLogin() {
       const formAdmin = document.getElementById('loginFormAdmin');
+      const formScore = document.getElementById('loginFormScore');
       const isAdmin = !formAdmin.classList.contains('hidden');
+      const isScore = !formScore.classList.contains('hidden');
 
       if (isAdmin) {
         const u = document.getElementById('adminAccountInput').value.trim();
         const p = document.getElementById('adminPasswordInput').value.trim();
-        if (u === 'admin' && p === 'admin888') {
+        if (u === authAccounts.admin.username && p === authAccounts.admin.password) {
           currentUser = { role: 'admin' };
           closeModal('loginModal');
           showAdminDashboard();
           showToast('大會管理員驗證登入成功！');
-        } else {
-          showToast('帳號或密碼錯誤！', 'error');
-        }
+        } else { showToast('帳號或密碼錯誤！', 'error'); }
+      } else if (isScore) {
+        const u = document.getElementById('scoreAccountInput').value.trim();
+        const p = document.getElementById('scorePasswordInput').value.trim();
+        if (u === authAccounts.score.username && p === authAccounts.score.password) {
+          currentUser = { role: 'score' };
+          closeModal('loginModal');
+          showScoreEntryDashboard();
+          showToast('成績輸入權限登入成功！');
+        } else { showToast('成績輸入帳號或密碼錯誤！', 'error'); }
       } else {
         const cls = document.getElementById('classLoginSelect').value;
         const pwd = document.getElementById('classPasswordInput').value.trim();
@@ -4880,10 +5007,81 @@
           closeModal('loginModal');
           showClassPortal(cls);
           showToast(`已登入 ${cls} 班專區！`);
-        } else {
-          showToast('班級密碼不符，請向體育組確認！', 'error');
-        }
+        } else { showToast('班級密碼不符，請向體育組確認！', 'error'); }
       }
+    }
+
+    function lockScoreOperatorControls() {
+      if (!currentUser || currentUser.role !== 'score') return;
+      // 「體育班榜首時普通班次席並列第一名」是全域排名規則，只有管理員可修改。
+      const coFirst = document.getElementById('checkCoFirstRule');
+      if (coFirst) {
+        coFirst.disabled = true;
+        coFirst.checked = true;
+        coFirst.closest('label')?.classList.add('opacity-60', 'cursor-not-allowed');
+        const text = coFirst.closest('label')?.querySelector('span');
+        if (text) text.innerHTML = '啟用體育班榜首時，普通班次席並列第一名 <span class="text-xs text-rose-600">（管理員設定）</span>';
+      }
+      // 成績輸入人員不可進入或操作其他管理面板。
+      document.querySelectorAll('#adminMainTabs .admin-tab-btn').forEach(btn => {
+        btn.classList.add('hidden');
+      });
+      const scoreBtn = document.getElementById('adminTabBtn-scores');
+      if (scoreBtn) scoreBtn.classList.remove('hidden');
+    }
+
+    function showScoreEntryDashboard() {
+      document.getElementById('viewPublicBoard').classList.add('hidden');
+      document.getElementById('viewAdminDashboard').classList.remove('hidden');
+      document.getElementById('viewClassPortal').classList.add('hidden');
+      const btnSwitch = document.getElementById('btnSwitchToPublic');
+      btnSwitch.classList.remove('hidden');
+      btnSwitch.innerHTML = `<i class="fa-solid fa-bullhorn mr-2 text-amber-400"></i>大會看板`;
+      btnSwitch.onclick = showPublicView;
+      const badge = document.getElementById('userRoleBadge');
+      badge.classList.remove('hidden'); badge.classList.add('flex');
+      document.getElementById('userRoleText').innerText = '成績輸入人員';
+      document.getElementById('btnTopAuthText').innerText = '登出';
+      document.querySelectorAll('#adminMainTabs .admin-tab-btn').forEach(btn => btn.classList.add('hidden'));
+      const scoreBtn = document.getElementById('adminTabBtn-scores');
+      if (scoreBtn) scoreBtn.classList.remove('hidden');
+      document.getElementById('adminMainTabs').classList.remove('hidden');
+      switchAdminTab('scores');
+      lockScoreOperatorControls();
+    }
+
+    function restoreAdminTabsForAdmin() {
+      document.querySelectorAll('#adminMainTabs .admin-tab-btn').forEach(btn => btn.classList.remove('hidden'));
+      const coFirst = document.getElementById('checkCoFirstRule');
+      if (coFirst) {
+        coFirst.disabled = false;
+        coFirst.closest('label')?.classList.remove('opacity-60', 'cursor-not-allowed');
+        const text = coFirst.closest('label')?.querySelector('span');
+        if (text) text.innerHTML = '啟用體育班榜首時，普通班次席並列第一名';
+      }
+    }
+
+    function openAuthAccountModal() {
+      if (!currentUser || currentUser.role !== 'admin') { showToast('只有大會管理員可以修改系統帳密！', 'error'); return; }
+      document.getElementById('authAdminUsernameInput').value = authAccounts.admin.username;
+      document.getElementById('authAdminPasswordInput').value = authAccounts.admin.password;
+      document.getElementById('authScoreUsernameInput').value = authAccounts.score.username;
+      document.getElementById('authScorePasswordInput').value = authAccounts.score.password;
+      openModal('authAccountModal');
+    }
+
+    function saveAuthAccountSettings() {
+      if (!currentUser || currentUser.role !== 'admin') { showToast('只有大會管理員可以修改系統帳密！', 'error'); return; }
+      const au = document.getElementById('authAdminUsernameInput').value.trim();
+      const ap = document.getElementById('authAdminPasswordInput').value.trim();
+      const su = document.getElementById('authScoreUsernameInput').value.trim();
+      const sp = document.getElementById('authScorePasswordInput').value.trim();
+      if (!au || !ap || !su || !sp) { showToast('管理員與成績輸入帳密都必須填寫！', 'error'); return; }
+      if (au === su) { showToast('兩組帳號不可相同，請分開設定！', 'error'); return; }
+      authAccounts = { admin: { username: au, password: ap }, score: { username: su, password: sp } };
+      saveAuthAccounts();
+      closeModal('authAccountModal');
+      showToast('系統帳密已成功更新！');
     }
 
     function openBatchPasswordModal() {
