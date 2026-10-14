@@ -1830,6 +1830,16 @@
           <input type="text" id="settingAcademicYear" value="115 學年度全校運動大會" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold">
         </div>
 
+        <!-- 每學年度可自行調整個人賽報名上限 -->
+        <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+          <label for="settingMaxIndividualEvents" class="block font-black text-amber-950">每位學生個人賽報名上限</label>
+          <div class="flex items-center gap-3">
+            <input type="number" id="settingMaxIndividualEvents" min="0" max="20" step="1" value="2" class="w-28 bg-white border border-amber-300 rounded-xl p-2.5 text-center text-lg font-black text-slate-900">
+            <span class="font-bold text-amber-950">項個人賽</span>
+          </div>
+          <p class="text-xs leading-relaxed text-amber-800">每學年度可依競賽辦法自行調整，儲存後立即套用於班級報名及管理員新增名單。接力賽不計入；設定為 0 代表不可報名個人賽。</p>
+        </div>
+
         <!-- Registration Time Settings -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div>
@@ -1961,9 +1971,21 @@
       subTitle: '賽事報名與成績海報管理系統',
       regStartDate: '',
       regEndDate: '',
+      maxIndividualEvents: 2,
       // 全校共用的 Google Apps Script Web App 網址：所有人開啟 GitHub 網頁時自動帶入
       googleSheetUrl: 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec'
     };
+
+    const INDIVIDUAL_EVENT_LIMIT_STORAGE_KEY = 'jialin_sports_individual_event_limit_v1';
+    try {
+      const savedIndividualLimit = localStorage.getItem(INDIVIDUAL_EVENT_LIMIT_STORAGE_KEY);
+      if (savedIndividualLimit !== null && savedIndividualLimit !== '') {
+        const parsedIndividualLimit = Number(savedIndividualLimit);
+        if (Number.isInteger(parsedIndividualLimit) && parsedIndividualLimit >= 0 && parsedIndividualLimit <= 20) {
+          systemConfig.maxIndividualEvents = parsedIndividualLimit;
+        }
+      }
+    } catch (err) {}
 
     let categoriesList = ['徑賽', '田賽', '接力賽', '趣味競賽'];
 
@@ -3162,6 +3184,15 @@
       if (duplicate) {
         showToast('該名學生已在此賽事的參賽名單中！', 'error');
         return;
+      }
+
+      if (ev.category !== '接力賽') {
+        const limit = getMaxIndividualEvents();
+        const currentCount = countStudentIndividualEvents(studentId, regId);
+        if (currentCount >= limit) {
+          showToast(`${student.name} 已報名 ${currentCount} 項個人賽，無法再新增；目前上限為 ${limit} 項（接力賽不計）。`, 'error');
+          return;
+        }
       }
 
       const sameEventClass = athleteRegistrations.filter(r => r.eventId === eventId && r.classId === classId && r.id !== regId);
@@ -4810,6 +4841,20 @@
       }, 150);
     }
 
+    // 個人賽上限由管理員按每學年度自行設定；接力賽不列入計算。
+    function getMaxIndividualEvents() {
+      const raw = Number(systemConfig.maxIndividualEvents);
+      return Number.isFinite(raw) && raw >= 0 ? Math.min(20, Math.floor(raw)) : 2;
+    }
+
+    function countStudentIndividualEvents(studentId, excludeRegId = '') {
+      return athleteRegistrations.filter(r => {
+        if (String(r.studentId) !== String(studentId) || String(r.id) === String(excludeRegId)) return false;
+        const event = eventsList.find(e => String(e.id) === String(r.eventId));
+        return !!event && event.category !== '接力賽';
+      }).length;
+    }
+
     function initClassPortalEvents(cls) {
       const grade = cls.charAt(0);
       const sel = document.getElementById('classEventSelect');
@@ -4845,6 +4890,7 @@
         <div><b>參賽年級：</b>${ev.grade} 年級</div>
         <div><b>賽事種類：</b>${ev.category} (${ev.gender}組)</div>
         <div><b>名額規定：</b>正選 ${ev.regularQuota} 人 ${ev.reserveQuota ? `/ 候補 ${ev.reserveQuota} 人` : ''}</div>
+        ${ev.category !== '接力賽' ? `<div class="text-indigo-700 font-bold"><b>個人賽限制：</b>每位學生最多 ${getMaxIndividualEvents()} 項（接力賽不計）</div>` : ''}
       `;
 
       const assigned = athleteRegistrations.filter(r => r.classId === cls && r.eventId === eventId);
@@ -4912,6 +4958,15 @@
       if (currentAssigned.some(r => r.studentId === studentId)) {
         showToast('該名學生已在參賽名冊中！', 'error');
         return;
+      }
+
+      if (ev.category !== '接力賽') {
+        const limit = getMaxIndividualEvents();
+        const currentCount = countStudentIndividualEvents(studentId);
+        if (currentCount >= limit) {
+          showToast(`${student.name} 已報名 ${currentCount} 項個人賽，已達每人上限 ${limit} 項；接力賽不計入。`, 'error');
+          return;
+        }
       }
 
       athleteRegistrations.push({
@@ -5176,6 +5231,7 @@
       const sYear = document.getElementById('settingAcademicYear');
       const sStart = document.getElementById('settingRegStartDate');
       const sEnd = document.getElementById('settingRegEndDate');
+      const sMaxIndividual = document.getElementById('settingMaxIndividualEvents');
       const sSheet = document.getElementById('settingGoogleSheetUrl');
 
       if (sMain) systemConfig.mainTitle = sMain.value.trim();
@@ -5184,6 +5240,16 @@
       if (sYear) systemConfig.academicYear = sYear.value.trim();
       if (sStart) systemConfig.regStartDate = sStart.value;
       if (sEnd) systemConfig.regEndDate = sEnd.value;
+      if (sMaxIndividual) {
+        const rawLimit = Number(sMaxIndividual.value);
+        if (!Number.isInteger(rawLimit) || rawLimit < 0 || rawLimit > 20) {
+          showToast('個人賽上限請輸入 0 到 20 的整數！', 'error');
+          sMaxIndividual.focus();
+          return;
+        }
+        systemConfig.maxIndividualEvents = rawLimit;
+        try { localStorage.setItem(INDIVIDUAL_EVENT_LIMIT_STORAGE_KEY, String(rawLimit)); } catch (err) {}
+      }
       if (sSheet) systemConfig.googleSheetUrl = sSheet.value.trim();
 
       applySystemSettingsToUI();
@@ -5204,6 +5270,7 @@
       const sYear = document.getElementById('settingAcademicYear');
       const sStart = document.getElementById('settingRegStartDate');
       const sEnd = document.getElementById('settingRegEndDate');
+      const sMaxIndividual = document.getElementById('settingMaxIndividualEvents');
       const sSheet = document.getElementById('settingGoogleSheetUrl');
 
       if (sMain) sMain.value = systemConfig.mainTitle;
@@ -5212,6 +5279,7 @@
       if (sYear) sYear.value = systemConfig.academicYear;
       if (sStart) sStart.value = systemConfig.regStartDate;
       if (sEnd) sEnd.value = systemConfig.regEndDate;
+      if (sMaxIndividual) sMaxIndividual.value = getMaxIndividualEvents();
       if (sSheet) sSheet.value = systemConfig.googleSheetUrl || 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec';
     }
 
@@ -5239,7 +5307,7 @@
       const keepAnnouncements = document.getElementById('checkKeepAnnouncements').checked;
       const clearStudents = document.getElementById('checkClearStudents').checked;
 
-      showConfirmModal('確認執行跨年度賽會交接', `確定要正式推進至「${newYear}」嗎？現有報名與成績將歸檔清空。`, () => {
+      showConfirmModal('確認執行跨年度賽會交接', `確定要正式推進至「${newYear}」嗎？現有報名與成績將歸檔清空。個人賽每人上限會沿用目前設定，請於新學年度依規程到「系統設定」手動調整。`, () => {
         athleteRegistrations = [];
         eventResults = [];
         if (clearStudents) studentsList = [];
@@ -5255,6 +5323,7 @@
 
     /* Modal, Confirm, and Toast Helpers */
     function openModal(id) {
+      if (id === 'systemSettingsModal') applySystemSettingsToUI();
       const el = document.getElementById(id);
       if (el) el.classList.remove('hidden');
     }
