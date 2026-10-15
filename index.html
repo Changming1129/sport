@@ -451,6 +451,10 @@
             <button onclick="downloadFullBackupJson()" class="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs sm:text-sm font-bold transition flex items-center">
               <i class="fa-solid fa-cloud-arrow-down mr-2"></i>資料備份
             </button>
+            <button onclick="document.getElementById('fullBackupRestoreInput').click()" class="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-bold transition flex items-center">
+              <i class="fa-solid fa-cloud-arrow-up mr-2"></i>載入備份
+            </button>
+            <input id="fullBackupRestoreInput" type="file" accept=".json,application/json" class="hidden" onchange="restoreFullBackupJson(event)">
             <button onclick="openModal('systemSettingsModal')" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-bold transition flex items-center">
               <i class="fa-solid fa-sliders mr-2"></i>系統設定
             </button>
@@ -5453,6 +5457,55 @@
       a.click();
       URL.revokeObjectURL(url);
       showToast('全校賽會備份檔下載完畢！');
+    }
+
+    async function restoreFullBackupJson(event) {
+      const input = event && event.target;
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+
+      try {
+        const raw = await file.text();
+        const parsed = JSON.parse(raw);
+        // 同時支援「資料備份」匯出的完整備份格式，以及雲端完整狀態格式。
+        const state = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
+        const requiredArrays = ['categoriesList', 'eventsList', 'studentsList', 'athleteRegistrations', 'eventResults', 'announcementsList'];
+        const hasRecognizedData = state && typeof state === 'object' &&
+          requiredArrays.some(key => Array.isArray(state[key])) &&
+          state.systemConfig && typeof state.systemConfig === 'object';
+        if (!hasRecognizedData) {
+          throw new Error('這不是佳林國中運動會的完整資料備份 JSON，請選擇由「資料備份」匯出的檔案。');
+        }
+
+        const eventCount = Array.isArray(state.eventsList) ? state.eventsList.length : 0;
+        const studentCount = Array.isArray(state.studentsList) ? state.studentsList.length : 0;
+        const registrationCount = Array.isArray(state.athleteRegistrations) ? state.athleteRegistrations.length : 0;
+        showConfirmModal(
+          '確認載入資料備份',
+          `即將載入「${file.name}」。\n賽事項目：${eventCount} 項；學生：${studentCount} 人；報名紀錄：${registrationCount} 筆。\n這會以備份內容取代目前畫面中的賽會資料。建議先下載目前資料備份。確定繼續嗎？`,
+          async () => {
+            try {
+              applyCloudState(state);
+              // 將備份內容回存到 GAS，避免只還原在目前瀏覽器。
+              const saved = await syncFullStateToCloud(false);
+              if (saved) {
+                showToast('備份已載入，並已同步儲存至 GAS 雲端！', 'success');
+              } else {
+                showToast('備份已載入目前畫面，但尚未同步到雲端；請以管理員登入後再按同步／儲存。', 'error');
+              }
+            } catch (err) {
+              console.error('還原備份失敗：', err);
+              showToast('載入備份失敗：' + (err.message || err), 'error');
+            }
+          }
+        );
+      } catch (err) {
+        console.error('備份檔讀取失敗：', err);
+        showToast('無法載入備份：' + (err.message || err), 'error');
+      } finally {
+        // 允許再次選取相同檔案。
+        if (input) input.value = '';
+      }
     }
 
     function executeSelectiveYearRollover() {
