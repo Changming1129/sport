@@ -1935,6 +1935,9 @@
   <script>
     /* Global Application State */
     let currentUser = null; // null: 訪客, { role: 'admin' }, { role: 'score' }, { role: 'class', classId: '701' }
+    let gasSessionToken = null;
+    let cloudStateLastUpdatedAt = 0;
+    let cloudStateSaveInProgress = false;
     const AUTH_STORAGE_KEY = 'jialin_sports_auth_accounts_v1';
     let authAccounts = {
       admin: { username: 'admin', password: 'admin888' },
@@ -2581,6 +2584,8 @@
       closeModal('eventEditModal');
       renderAdminEventsTable();
       syncPublicEventSelect();
+      // 新增／修改賽事後立即寫入 GAS，不能只存在目前瀏覽器。
+      syncFullStateToCloud(true);
     }
 
     function deleteEvent(id) {
@@ -2590,7 +2595,10 @@
         eventResults = eventResults.filter(r => r.eventId !== id);
         renderAdminEventsTable();
         syncPublicEventSelect();
-        showToast('賽事項目已安全刪除');
+        syncFullStateToCloud(false).then(ok => {
+          if (ok) showToast('賽事項目已刪除並同步至 GAS 雲端', 'success');
+          else showToast('賽事項目已在目前頁面刪除，但雲端同步失敗，請重新登入管理員並重試。', 'error');
+        });
       });
     }
 
@@ -5030,7 +5038,144 @@
       });
     }
 
-    function executeLogin() {
+    // ===== GAS 完整賽事資料同步 =====
+    // 已整合目前提供的 GAS 部署網址；若設定頁網址欄位空白，使用此預設網址。
+    const DEFAULT_GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec';
+    function getGasWebAppUrl() {
+      return String(systemConfig.googleSheetUrl || DEFAULT_GAS_WEB_APP_URL).trim();
+    }
+
+    async function gasRequest(payload) {
+      const url = getGasWebAppUrl();
+      if (!url) throw new Error('尚未設定 GAS Web App 網址。');
+      const response = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      if (!data || data.ok !== true) throw new Error(data && data.error ? data.error : 'GAS 要求失敗。');
+      return data;
+    }
+
+    function buildFullCloudState() {
+      return {
+        version: 2,
+        systemConfig: { ...systemConfig, googleSheetUrl: undefined },
+        categoriesList,
+        eventsList,
+        studentsList,
+        classAccounts,
+        classTypesMap,
+        athleteRegistrations,
+        eventResults,
+        announcementsList,
+        certStudioState,
+        certPrintRegistry
+      };
+    }
+
+    function applyCloudState(data, { refresh = true } = {}) {
+      if (!data || typeof data !== 'object') return;
+      if (data.systemConfig && typeof data.systemConfig === 'object') {
+        const keepUrl = systemConfig.googleSheetUrl;
+        systemConfig = { ...systemConfig, ...data.systemConfig };
+        systemConfig.googleSheetUrl = keepUrl;
+        if (Number.isInteger(Number(systemConfig.maxIndividualEvents))) {
+          try { localStorage.setItem(INDIVIDUAL_EVENT_LIMIT_STORAGE_KEY, String(systemConfig.maxIndividualEvents)); } catch (_) {}
+        }
+      }
+      if (Array.isArray(data.categoriesList)) categoriesList = data.categoriesList;
+      if (Array.isArray(data.eventsList)) eventsList = data.eventsList.map(e => ({ ...e, awardQuota: normalizeAwardQuota(e.awardQuota) }));
+      if (Array.isArray(data.studentsList)) studentsList = data.studentsList;
+      if (data.classAccounts && typeof data.classAccounts === 'object') classAccounts = data.classAccounts;
+      if (data.classTypesMap && typeof data.classTypesMap === 'object') classTypesMap = data.classTypesMap;
+      if (Array.isArray(data.athleteRegistrations)) athleteRegistrations = data.athleteRegistrations;
+      if (Array.isArray(data.eventResults)) eventResults = data.eventResults;
+      if (Array.isArray(data.announcementsList)) announcementsList = data.announcementsList;
+      if (data.certStudioState && typeof data.certStudioState === 'object') certStudioState = data.certStudioState;
+      if (data.certPrintRegistry && typeof data.certPrintRegistry === 'object') certPrintRegistry = data.certPrintRegistry;
+      if (refresh) {
+        applySystemSettingsToUI();
+        refreshEventCategoryDropdowns();
+        refreshPublicCategoryButtons();
+        syncPublicEventSelect();
+        renderAdminEventsTable();
+        renderAdminAnnouncementsTable();
+        renderPublicAnnouncements();
+        renderPublicHeroCards();
+        syncQuickClassSelect();
+        renderAdminStudents();
+        renderAdminAccounts();
+        initRegFilters();
+      }
+    }
+
+    async function loadCloudPublicState(silent = true) {
+      const url = getGasWebAppUrl();
+      if (!url) return false;
+      try {
+        const response = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=public&_=' + Date.now(), {
+          method: 'GET', cache: 'no-store'
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const result = await response.json();
+        if (!result || result.ok !== true) throw new Error(result && result.error ? result.error : '無法讀取雲端賽事');
+        // 只有雲端已有正式儲存紀錄時才覆蓋內建範例資料，避免首次部署的空資料清掉預設項目。
+        const hasFullState = result.hasFullState === true ||
+          (result.data && Array.isArray(result.data.eventsList) && result.data.eventsList.length > 0);
+        if (Number(result.updatedAt || 0) > 0 && result.data && hasFullState) {
+          applyCloudState(result.data);
+          cloudStateLastUpdatedAt = Number(result.updatedAt || 0);
+          if (!silent) showToast('已從 GAS 載入雲端賽事資料');
+        }
+        return true;
+      } catch (err) {
+        if (!silent) showToast('雲端賽事讀取失敗：' + (err.message || err), 'error');
+        return false;
+      }
+    }
+
+    async function loginToGas(username, password) {
+      const login = await gasRequest({ action: 'login', username, password });
+      gasSessionToken = login.token;
+      const privateData = await gasRequest({ action: 'getPrivate', token: gasSessionToken });
+      const hasFullState = privateData.hasFullState === true ||
+        (privateData.data && Array.isArray(privateData.data.eventsList) && privateData.data.eventsList.length > 0);
+      if (privateData.data && hasFullState) {
+        applyCloudState(privateData.data);
+        cloudStateLastUpdatedAt = Number(privateData.updatedAt || 0);
+      }
+      return true;
+    }
+
+    async function syncFullStateToCloud(showMessage = true) {
+      if (!gasSessionToken || !currentUser || currentUser.role !== 'admin') {
+        if (showMessage) showToast('本機操作已完成，但尚未取得 GAS 管理員雲端授權；請重新以管理員帳密登入後再同步。', 'error');
+        return false;
+      }
+      if (cloudStateSaveInProgress) return false;
+      cloudStateSaveInProgress = true;
+      try {
+        const result = await gasRequest({
+          action: 'save',
+          token: gasSessionToken,
+          state: buildFullCloudState()
+        });
+        cloudStateLastUpdatedAt = Number(result.updatedAt || Date.now());
+        if (showMessage) showToast('賽事與相關資料已成功儲存至 GAS 雲端', 'success');
+        return true;
+      } catch (err) {
+        if (showMessage) showToast('GAS 雲端儲存失敗：' + (err.message || err) + '。請勿關閉頁面，確認連線後重試。', 'error');
+        return false;
+      } finally {
+        cloudStateSaveInProgress = false;
+      }
+    }
+
+    async function executeLogin() {
       const formAdmin = document.getElementById('loginFormAdmin');
       const formScore = document.getElementById('loginFormScore');
       const isAdmin = !formAdmin.classList.contains('hidden');
@@ -5043,7 +5188,18 @@
           currentUser = { role: 'admin' };
           closeModal('loginModal');
           showAdminDashboard();
-          showToast('大會管理員驗證登入成功！');
+          const gasUrl = getGasWebAppUrl();
+          if (gasUrl) {
+            try {
+              await loginToGas(u, p);
+              showToast('管理員登入成功，並已載入 GAS 雲端資料', 'success');
+            } catch (err) {
+              gasSessionToken = null;
+              showToast('本機管理員登入成功，但 GAS 雲端授權失敗：' + (err.message || err) + '。新增賽事將無法同步至雲端。', 'error');
+            }
+          } else {
+            showToast('本機管理員登入成功；尚未設定 GAS 網址，資料不會跨裝置同步。', 'error');
+          }
         } else { showToast('帳號或密碼錯誤！', 'error'); }
       } else if (isScore) {
         const u = document.getElementById('scoreAccountInput').value.trim();
@@ -5366,6 +5522,9 @@
     document.addEventListener('DOMContentLoaded', async () => {
       loadCertPrintRegistry();
       applySystemSettingsToUI();
+
+      // 先讀取 GAS 公開賽事資料，確保重開瀏覽器後不會只顯示 HTML 內建的預設賽事。
+      await loadCloudPublicState(true);
 
       // 先讀取本機快取，再嘗試向 Google Apps Script 取得全校最新名冊。
       restoreStudentCloudCache();
