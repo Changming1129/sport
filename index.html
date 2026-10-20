@@ -2656,7 +2656,7 @@
       document.execCommand('fontSize', false, size);
     }
 
-    function saveAnnouncement() {
+    async function saveAnnouncement() {
       const id = document.getElementById('editingAnnouncementId').value;
       const title = document.getElementById('announcementTitleInput').value.trim();
       const content = document.getElementById('announcementContentEditable').innerHTML.trim();
@@ -2666,7 +2666,6 @@
       if (id) {
         const item = announcementsList.find(a => a.id === id);
         if (item) { item.title = title; item.content = content; }
-        showToast('公告內容已更新！');
       } else {
         announcementsList.unshift({
           id: 'A_' + Date.now(),
@@ -2674,20 +2673,35 @@
           date: new Date().toISOString().split('T')[0],
           content: content
         });
-        showToast('新公告已成功發布！');
       }
 
       closeModal('announcementModal');
       renderAdminAnnouncementsTable();
       renderPublicAnnouncements();
+      // 公告必須明確寫入 GAS；不能只留在目前分頁的 JavaScript 記憶體。
+      const saved = await syncFullStateToCloud(false);
+      if (saved) {
+        showToast(id ? '公告已更新並儲存至雲端！' : '新公告已發布並儲存至雲端！', 'success');
+      } else {
+        showToast('公告已在目前畫面更新，但雲端儲存失敗。請確認以管理員登入，並重新儲存。', 'error');
+      }
     }
 
     function deleteAnnouncement(id) {
-      showConfirmModal('確認刪除公告', '確定要永久刪除此則大會公告嗎？', () => {
+      showConfirmModal('確認刪除公告', '確定要永久刪除此則大會公告嗎？', async () => {
+        const previous = announcementsList;
         announcementsList = announcementsList.filter(a => a.id !== id);
         renderAdminAnnouncementsTable();
         renderPublicAnnouncements();
-        showToast('公告已刪除');
+        const saved = await syncFullStateToCloud(false);
+        if (saved) {
+          showToast('公告已刪除並同步至雲端', 'success');
+        } else {
+          announcementsList = previous;
+          renderAdminAnnouncementsTable();
+          renderPublicAnnouncements();
+          showToast('公告刪除未能儲存至雲端，已還原畫面資料。請確認管理員登入與網路連線。', 'error');
+        }
       });
     }
 
