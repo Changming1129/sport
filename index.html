@@ -254,6 +254,26 @@
       background-size: 18px 18px;
     }
 
+    .cert-preview-richtext p,
+    .cert-preview-richtext div,
+    .cert-preview-richtext li,
+    .cert-preview-richtext h1,
+    .cert-preview-richtext h2,
+    .cert-preview-richtext h3,
+    .cert-preview-richtext blockquote {
+      margin-block: 0 !important;
+      padding-block: 0 !important;
+    }
+    .cert-preview-richtext p,
+    .cert-preview-richtext div,
+    .cert-preview-richtext li,
+    .cert-preview-richtext h1,
+    .cert-preview-richtext h2,
+    .cert-preview-richtext h3,
+    .cert-preview-richtext blockquote {
+      text-align: inherit;
+    }
+
     .cert-canvas-box {
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       position: relative;
@@ -263,11 +283,73 @@
 
     .cert-element {
       position: absolute;
+      box-sizing: border-box;
       user-select: none;
       cursor: move;
       border: 1.5px dashed transparent;
       transition: border-color 0.15s ease;
       touch-action: none;
+      /* 元件框尺寸是實際版面尺寸；內容不得溢出，但選取控制點仍可顯示在框外 */
+      overflow: visible;
+    }
+    .cert-preview-richtext {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: normal;
+      text-overflow: clip;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: 0;
+      vertical-align: top;
+      /* 文字第一行以元件內容區左上角為排版起點 */
+      text-indent: 0 !important;
+      transform: none;
+    }
+    .cert-preview-richtext * {
+      box-sizing: border-box;
+      max-width: 100%;
+    }
+    .cert-preview-richtext > :first-child,
+    .cert-preview-richtext > p:first-child,
+    .cert-preview-richtext > div:first-child,
+    .cert-preview-richtext > h1:first-child,
+    .cert-preview-richtext > h2:first-child,
+    .cert-preview-richtext > h3:first-child,
+    .cert-preview-richtext > blockquote:first-child {
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+    }
+    .cert-preview-richtext[style*="text-align: left"] > *,
+    .cert-preview-richtext[style*="text-align:left"] > * {
+      text-indent: 0 !important;
+    }
+    .cert-preview-richtext p,
+    .cert-preview-richtext div,
+    .cert-preview-richtext li,
+    .cert-preview-richtext h1,
+    .cert-preview-richtext h2,
+    .cert-preview-richtext h3,
+    .cert-preview-richtext h4,
+    .cert-preview-richtext h5,
+    .cert-preview-richtext h6,
+    .cert-preview-richtext blockquote {
+      margin: 0 !important;
+      padding: 0 !important;
+      min-width: 0;
+    }
+    .cert-preview-richtext br { display: initial; }
+    .cert-preview-richtext p,
+    .cert-preview-richtext div,
+    .cert-preview-richtext li {
+      margin-block: 0 !important;
+      padding-block: 0 !important;
     }
 
     .cert-element.selected {
@@ -861,6 +943,9 @@
               <button onclick="openCertBatchPrintModal()" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-black shadow flex items-center">
                 <i class="fa-solid fa-print mr-2"></i>導入獲獎名冊並批次套印
               </button>
+              <button onclick="exportAllAwardWinnersExcel()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black shadow flex items-center">
+                <i class="fa-solid fa-file-excel mr-2"></i>匯出全校獲獎名單 Excel
+              </button>
             </div>
           </div>
 
@@ -926,95 +1011,38 @@
                 </div>
               </div>
 
-              <!-- Accordion 3: 元件新增與圖層 -->
+              <!-- Accordion 3: 元件庫、圖層、文字格式與排版整合 -->
               <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
                 <button onclick="toggleAccordion('accLayers')" class="w-full p-4 bg-slate-100 hover:bg-slate-200/70 font-bold text-sm text-slate-800 flex items-center justify-between">
-                  <span><i class="fa-solid fa-layer-group text-emerald-600 mr-2"></i>3. 元件庫與圖層管理</span>
+                  <span><i class="fa-solid fa-layer-group text-emerald-600 mr-2"></i>3. 元件、圖層、文字格式與排版（整合）</span>
                   <i class="fa-solid fa-chevron-down text-slate-400"></i>
                 </button>
-                <div id="accLayers" class="accordion-content p-4 space-y-3 text-sm bg-white">
+                <div id="accLayers" class="accordion-content open p-4 space-y-3 text-sm bg-white">
                   <div class="grid grid-cols-3 gap-2">
-                    <button onclick="addCertTextElement('動態段落', '{班級} 學生 {姓名} 榮獲 {賽事} 第 {名次} 名，成績：{成績}。')" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold border border-indigo-200 text-xs">
-                      + 變數段落
-                    </button>
-                    <button onclick="addCertTextElement('固定文字', '特頒此狀 以資鼓勵')" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs">
-                      + 固定文字
-                    </button>
-                    <label class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold border border-rose-200 flex items-center justify-center cursor-pointer text-xs">
-                      + 印章/簽名
-                      <input type="file" accept="image/*" class="hidden" onchange="handleCertImageUpload(event)">
-                    </label>
+                    <button onclick="addCertTextElement('動態段落', '{班級} 學生 {姓名} 榮獲 {賽事} 第 {名次} 名，成績：{成績}。')" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold border border-indigo-200 text-xs">+ 變數段落</button>
+                    <button onclick="addCertTextElement('固定文字', '特頒此狀 以資鼓勵')" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs">+ 固定文字</button>
+                    <label class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold border border-rose-200 flex items-center justify-center cursor-pointer text-xs">+ 印章/簽名<input type="file" accept="image/*" class="hidden" onchange="handleCertImageUpload(event)"></label>
                   </div>
-                  <div class="space-y-2 max-h-52 overflow-y-auto" id="certLayersList">
-                    <!-- Layer list -->
-                  </div>
-                </div>
-              </div>
-
-              <!-- Accordion 4: 選取元件排版與對齊 -->
-              <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
-                <button onclick="toggleAccordion('accProps')" class="w-full p-4 bg-slate-100 hover:bg-slate-200/70 font-bold text-sm text-slate-800 flex items-center justify-between">
-                  <span><i class="fa-solid fa-sliders text-cyan-600 mr-2"></i>4. 選取元件排版與對齊</span>
-                  <i class="fa-solid fa-chevron-down text-slate-400"></i>
-                </button>
-                <div id="accProps" class="accordion-content p-4 space-y-3.5 text-sm bg-white">
-                  <div id="certPropsEmptyHint" class="text-slate-400 text-center py-5">請在畫布上點選任一元件進行調整</div>
+                  <div class="space-y-2 max-h-40 overflow-y-auto" id="certLayersList"></div>
+                  <div class="border-t pt-3" id="certPropsEmptyHint" class="text-slate-400 text-center py-5">請在畫布上點選任一元件進行調整</div>
                   <div id="certPropsForm" class="space-y-3 hidden">
-                    <div>
-                      <label class="block font-bold text-slate-700 mb-1">文字內容 (支援換行)：</label>
-                      <textarea id="certElemText" rows="3" oninput="updateActiveElementProps()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-mono text-sm text-slate-800"></textarea>
-                    </div>
-
-                    <div>
-                      <span class="block text-xs font-bold text-slate-600 mb-1">插入動態標籤：</span>
-                      <div class="flex flex-wrap gap-1.5">
-                        <button onclick="insertTagToActiveText('{姓名}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{姓名}</button>
-                        <button onclick="insertTagToActiveText('{班級}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{班級}</button>
-                        <button onclick="insertTagToActiveText('{賽事}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{賽事}</button>
-                        <button onclick="insertTagToActiveText('{名次}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{名次}</button>
-                        <button onclick="insertTagToActiveText('{成績}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{成績}</button>
-                        <button onclick="insertTagToActiveText('{字號}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{字號}</button>
+                    <div><label class="block font-bold text-slate-700 mb-1">文字內容（支援換行及局部富文本）：</label>
+                      <div class="flex flex-wrap gap-1.5 mb-2">
+                        <button type="button" onmousedown="event.preventDefault();formatCertRichText('bold')" class="px-3 py-1.5 bg-slate-100 rounded-lg font-black" title="粗體">B</button>
+                        <button type="button" onmousedown="event.preventDefault();formatCertRichText('underline')" class="px-3 py-1.5 bg-slate-100 rounded-lg underline" title="底線">U</button>
+                        <label class="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-lg">文字色彩 <input type="color" id="certRichColor" value="#b91c1c" onchange="formatCertRichText('foreColor',this.value)" class="w-7 h-7"></label>
+                        <label class="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-lg">字型 <select id="certRichFont" onchange="formatCertRichText('fontName',this.value)" class="border rounded p-1"><option value="Noto Serif TC">思源宋體</option><option value="Noto Sans TC">思源黑體</option><option value="DFKai-SB">標楷體</option><option value="Arial">Arial</option><option value="serif">明體/襯線</option><option value="sans-serif">黑體/無襯線</option></select></label>
+                        <label class="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-lg">字體大小 (px) <select id="certRichSize" onchange="formatCertRichText('fontSizePx',this.value)" class="border rounded p-1"><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20" selected>20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="44">44</option><option value="48">48</option><option value="56">56</option><option value="64">64</option></select></label><label class="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-lg">行距 <select id="certRichLineHeight" onchange="formatCertRichText('lineHeight',this.value)" class="border rounded p-1"><option value="1">1.0 倍</option><option value="1.2">1.2 倍</option><option value="1.4">1.4 倍</option><option value="1.6" selected>1.6 倍</option><option value="1.8">1.8 倍</option><option value="2">2.0 倍</option><option value="2.5">2.5 倍</option></select></label><label class="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-lg">文字對齊 <select id="certRichAlign" onchange="setActiveRichTextAlign(this.value)" class="border rounded p-1"><option value="left">靠左</option><option value="center">置中</option><option value="right">靠右</option><option value="justify">左右對齊</option></select></label>
                       </div>
+                      <div id="certElemRichText" contenteditable="true" spellcheck="false" oninput="updateActiveElementProps()" onkeyup="saveCertRichSelection()" onmouseup="saveCertRichSelection()" onfocus="saveCertRichSelection()" class="cert-rich-editor w-full min-h-24 bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm text-slate-800" style="font-family:'Noto Serif TC';font-size:12px;line-height:1.6;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2"></div>
+                      <p class="text-xs text-slate-500 mt-1">先用滑鼠框選文字，再設定粗體、底線、文字色彩、字型、字級或行距，即可只套用在選取文字；調整字級不會清除已設定的行距。</p>
                     </div>
-
-                    <div>
-                      <span class="block text-xs font-bold text-slate-600 mb-1">畫布對齊工具：</span>
-                      <div class="grid grid-cols-4 gap-1.5">
-                        <button onclick="alignActiveElement('canvas-left')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">靠左</button>
-                        <button onclick="alignActiveElement('canvas-hcenter')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">置中</button>
-                        <button onclick="alignActiveElement('canvas-right')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">靠右</button>
-                        <button onclick="alignActiveElement('canvas-vcenter')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">垂直中</button>
-                      </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2.5">
-                      <div>
-                        <label class="block font-bold text-slate-700 mb-1">字級 (px)：</label>
-                        <input type="number" id="certElemSize" min="10" max="120" oninput="updateActiveElementProps()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold">
-                      </div>
-                      <div>
-                        <label class="block font-bold text-slate-700 mb-1">文字色彩：</label>
-                        <input type="color" id="certElemColor" oninput="updateActiveElementProps()" class="w-full h-10 bg-slate-50 border border-slate-300 rounded-xl p-1 cursor-pointer">
-                      </div>
-                      <div>
-                        <label class="block font-bold text-slate-700 mb-1">文字對齊：</label>
-                        <select id="certElemAlign" onchange="updateActiveElementProps()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold">
-                          <option value="left">靠左</option>
-                          <option value="center">置中</option>
-                          <option value="right">靠右</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center justify-between pt-2 border-t">
-                      <label class="flex items-center space-x-2 font-bold text-slate-700 cursor-pointer">
-                        <input type="checkbox" id="certElemAspectLock" onchange="updateActiveElementProps()" class="rounded text-indigo-600">
-                        <span>等比例縮放鎖定</span>
-                      </label>
-                      <button onclick="deleteActiveCertElement()" class="px-4 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-bold text-xs">
-                        <i class="fa-solid fa-trash mr-1.5"></i>刪除元件
-                      </button>
-                    </div>
+                    <div><span class="block text-xs font-bold text-slate-600 mb-1">插入動態標籤：</span><div class="flex flex-wrap gap-1.5">
+                      <button onclick="insertTagToActiveText('{姓名}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{姓名}</button><button onclick="insertTagToActiveText('{班級}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{班級}</button><button onclick="insertTagToActiveText('{賽事}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{賽事}</button><button onclick="insertTagToActiveText('{名次}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{名次}</button><button onclick="insertTagToActiveText('{成績}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{成績}</button><button onclick="insertTagToActiveText('{字號}')" class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{字號}</button>
+                    </div></div>
+                    <div><span class="block text-xs font-bold text-slate-600 mb-1">畫布對齊工具：</span><div class="grid grid-cols-4 gap-1.5"><button onclick="alignActiveElement('canvas-left')" class="p-2 bg-slate-100 rounded-xl font-bold text-xs">靠左</button><button onclick="alignActiveElement('canvas-hcenter')" class="p-2 bg-slate-100 rounded-xl font-bold text-xs">置中</button><button onclick="alignActiveElement('canvas-right')" class="p-2 bg-slate-100 rounded-xl font-bold text-xs">靠右</button><button onclick="alignActiveElement('canvas-vcenter')" class="p-2 bg-slate-100 rounded-xl font-bold text-xs">垂直中</button></div></div>
+                    
+                    <div class="flex items-center justify-between pt-2 border-t"><label class="flex items-center gap-2 font-bold text-slate-700"><input type="checkbox" id="certElemAspectLock" onchange="updateActiveElementProps()">等比例縮放鎖定</label><button onclick="deleteActiveCertElement()" class="px-4 py-1.5 bg-rose-50 text-rose-600 rounded-xl font-bold text-xs"><i class="fa-solid fa-trash mr-1.5"></i>刪除元件</button></div>
                   </div>
                 </div>
               </div>
@@ -1022,7 +1050,7 @@
               <!-- Accordion 5: 上傳字型與專案備份 -->
               <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
                 <button onclick="toggleAccordion('accBackup')" class="w-full p-4 bg-slate-100 hover:bg-slate-200/70 font-bold text-sm text-slate-800 flex items-center justify-between">
-                  <span><i class="fa-solid fa-font text-purple-600 mr-2"></i>5. 上傳字型與專案備份</span>
+                  <span><i class="fa-solid fa-font text-purple-600 mr-2"></i>4. 上傳字型與專案備份</span>
                   <i class="fa-solid fa-chevron-down text-slate-400"></i>
                 </button>
                 <div id="accBackup" class="accordion-content p-4 space-y-3.5 text-sm bg-white">
@@ -1552,6 +1580,14 @@
           <label class="block font-bold text-slate-700 mb-1">賽事名稱：</label>
           <select id="certBatchFilterEvent" onchange="renderCertBatchCandidateList()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold">
             <option value="all">全部賽事項目</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">比賽階段：</label>
+          <select id="certBatchFilterStage" onchange="renderCertBatchCandidateList()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold">
+            <option value="final" selected>決賽／總決賽</option>
+            <option value="prelim">初賽／預賽</option>
+            <option value="all">全部階段</option>
           </select>
         </div>
         <div>
@@ -2368,7 +2404,49 @@
       }).join('');
     }
 
+    // 本機賽事快照：分頁切換不應導致名單、棒次或成績回到 HTML 示範資料。
+    const LOCAL_EVENT_SNAPSHOT_KEY = 'jialinSportsEventSnapshot_v2';
+    function saveLocalEventSnapshot() {
+      try {
+        const snapshot = {
+          savedAt: Date.now(),
+          categoriesList, eventsList, studentsList, classTypesMap,
+          athleteRegistrations, eventResults
+        };
+        localStorage.setItem(LOCAL_EVENT_SNAPSHOT_KEY, JSON.stringify(snapshot));
+      } catch (err) {
+        console.warn('本機賽事快照儲存失敗（可能是瀏覽器儲存空間不足）', err);
+      }
+    }
+    function restoreLocalEventSnapshotIfCloudIsDemo(data, cloudUpdatedAt = 0) {
+      try {
+        const raw = localStorage.getItem(LOCAL_EVENT_SNAPSHOT_KEY);
+        if (!raw) return false;
+        const local = JSON.parse(raw);
+        if (!local || !Array.isArray(local.eventsList) || !Array.isArray(local.athleteRegistrations) || !Array.isArray(local.eventResults)) return false;
+        const cloudResults = Array.isArray(data?.eventResults) ? data.eventResults : [];
+        const cloudRegs = Array.isArray(data?.athleteRegistrations) ? data.athleteRegistrations : [];
+        const isDemoOnly = cloudResults.length > 0 && cloudResults.every(r => /^RES0[123]$/.test(String(r.id || '')))
+          && cloudRegs.every(r => /^R0[123]$/.test(String(r.id || '')));
+        const localHasRealData = local.athleteRegistrations.some(r => !/^R0[123]$/.test(String(r.id || ''))) ||
+          local.eventResults.some(r => !/^RES0[123]$/.test(String(r.id || '')));
+        const localIsNewerAndRicher = Number(local.savedAt || 0) > Number(cloudUpdatedAt || 0) &&
+          (local.athleteRegistrations.length > cloudRegs.length || local.eventResults.length > cloudResults.length);
+        if ((isDemoOnly && localHasRealData) || localIsNewerAndRicher) {
+          categoriesList = local.categoriesList || categoriesList;
+          eventsList = local.eventsList;
+          studentsList = Array.isArray(local.studentsList) && local.studentsList.length ? local.studentsList : studentsList;
+          classTypesMap = local.classTypesMap || classTypesMap;
+          athleteRegistrations = local.athleteRegistrations;
+          eventResults = local.eventResults;
+          return true;
+        }
+      } catch (err) { console.warn('讀取本機賽事快照失敗', err); }
+      return false;
+    }
+
     function switchAdminTab(tabKey) {
+      saveLocalEventSnapshot();
       // 成績輸入人員只能使用「成績試算」，禁止切換到任何其他管理功能。
       if (currentUser && currentUser.role === 'score' && tabKey !== 'scores') {
         showToast('成績輸入人員僅能使用「成績試算」功能。', 'error');
@@ -3257,6 +3335,7 @@
         athleteRegistrations.push(payload);
       }
 
+      saveLocalEventSnapshot();
       closeModal('registrationEditModal');
       initRegFilters();
       renderAdminRegistrationsTable();
@@ -3266,6 +3345,7 @@
     function deleteAthleteReg(id) {
       showConfirmModal('確認移除選手', '確定要從名冊中移除此位參賽選手嗎？', () => {
         athleteRegistrations = athleteRegistrations.filter(r => r.id !== id);
+        saveLocalEventSnapshot();
         renderAdminRegistrationsTable();
         showToast('選手已移除');
       });
@@ -3465,6 +3545,7 @@
         });
       });
 
+      saveLocalEventSnapshot();
       renderScoreEntryTable();
       renderPublicHeroCards();
       showToast('成績試算儲存成功！體育班特殊排名已自動核定。');
@@ -3720,60 +3801,186 @@
       syncActiveElementToInspector();
     }
 
+    let certRichSavedRange = null;
+    let certRichSelectionElementId = null;
+
+    function saveCertRichSelection() {
+      const editor = document.getElementById('certElemRichText');
+      if (!editor) return;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      if (editor.contains(range.commonAncestorContainer) || range.commonAncestorContainer === editor) {
+        certRichSavedRange = range.cloneRange();
+        certRichSelectionElementId = certStudioState.activeElementId;
+      }
+    }
+
+    function restoreCertRichSelection() {
+      const editor = document.getElementById('certElemRichText');
+      if (!editor) return false;
+      editor.focus({preventScroll:true});
+      const sel = window.getSelection();
+      if (sel && certRichSavedRange && certRichSelectionElementId === certStudioState.activeElementId &&
+          editor.contains(certRichSavedRange.commonAncestorContainer)) {
+        sel.removeAllRanges();
+        sel.addRange(certRichSavedRange);
+        return true;
+      }
+      return false;
+    }
+
     function syncActiveElementToInspector() {
       const el = certStudioState.elements.find(e => e.id === certStudioState.activeElementId);
       const emptyHint = document.getElementById('certPropsEmptyHint');
       const form = document.getElementById('certPropsForm');
-      if (!el) {
-        emptyHint.classList.remove('hidden');
-        form.classList.add('hidden');
-        return;
-      }
-
-      emptyHint.classList.add('hidden');
-      form.classList.remove('hidden');
-
-      const elemText = document.getElementById('certElemText');
-      const elemSize = document.getElementById('certElemSize');
-      const elemColor = document.getElementById('certElemColor');
-      const elemAlign = document.getElementById('certElemAlign');
+      if (!el) { emptyHint.classList.remove('hidden'); form.classList.add('hidden'); return; }
+      emptyHint.classList.add('hidden'); form.classList.remove('hidden');
+      const richText = document.getElementById('certElemRichText');
+      const richAlign = document.getElementById('certRichAlign');
       const elemLock = document.getElementById('certElemAspectLock');
-
-      if (elemText) elemText.value = el.text || '';
-      if (elemSize) elemSize.value = el.fontSize || 20;
-      if (elemColor) elemColor.value = el.color || '#000000';
-      if (elemAlign) elemAlign.value = el.textAlign || 'center';
+      if (richText) {
+        richText.innerHTML = el.richHtml || escapeHtmlForCert_(el.text || '').replace(/\n/g, '<br>');
+        richText.style.setProperty('text-align', el.textAlign || 'center', 'important');
+        // 載入舊資料時同步段落對齊，避免舊 HTML 的 inline style 與元件設定互相衝突。
+        richText.querySelectorAll('p,div,li,h1,h2,h3,h4,h5,h6,blockquote').forEach(block => {
+          if (!block.style.textAlign) block.style.setProperty('text-align', el.textAlign || 'center', 'important');
+        });
+        // 編輯框維持固定字級；富文本字級只影響畫布預覽。
+        richText.style.fontSize = '12px';
+      }
+      if (richAlign) richAlign.value = el.textAlign || 'center';
       if (elemLock) elemLock.checked = !!el.aspectLock;
+      certRichSavedRange = null;
+      certRichSelectionElementId = el.id;
     }
 
     function updateActiveElementProps() {
       const el = certStudioState.elements.find(e => e.id === certStudioState.activeElementId);
       if (!el) return;
-
-      const elemText = document.getElementById('certElemText');
-      const elemSize = document.getElementById('certElemSize');
-      const elemColor = document.getElementById('certElemColor');
-      const elemAlign = document.getElementById('certElemAlign');
+      const richText = document.getElementById('certElemRichText');
       const elemLock = document.getElementById('certElemAspectLock');
-
-      if (elemText && el.type === 'text') el.text = elemText.value;
-      if (elemSize) el.fontSize = parseInt(elemSize.value) || 16;
-      if (elemColor) el.color = elemColor.value;
-      if (elemAlign) el.textAlign = elemAlign.value;
+      if (richText && el.type === 'text') {
+        el.richHtml = richText.innerHTML;
+        el.text = richText.innerText.replace(/\r/g, '');
+        saveCertRichSelection();
+      }
       if (elemLock) el.aspectLock = elemLock.checked;
+      renderCertStudioCanvas();
+    }
 
+    function escapeHtmlForCert_(text) {
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function setActiveRichTextAlign(value) {
+      const el = certStudioState.elements.find(e => e.id === certStudioState.activeElementId);
+      const editor = document.getElementById('certElemRichText');
+      if (!el || !editor) return;
+      const restored = restoreCertRichSelection();
+      const sel = window.getSelection();
+      const range = restored && sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+      const blockSelector = 'p,div,li,h1,h2,h3,h4,h5,h6,blockquote';
+      const blocks = Array.from(editor.querySelectorAll(blockSelector)).filter(b => !b.closest('[contenteditable="false"]'));
+      let targets = [];
+      if (range && !range.collapsed && editor.contains(range.commonAncestorContainer)) {
+        targets = blocks.filter(block => { try { return range.intersectsNode(block); } catch (_) { return false; } });
+        if (!targets.length) {
+          let node = range.commonAncestorContainer.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
+          while (node && node !== editor && !node.matches?.(blockSelector)) node = node.parentElement;
+          if (node && node !== editor) targets = [node];
+        }
+      }
+      if (targets.length) {
+        // 對選取範圍中的段落設定明確的對齊值，避免父層樣式覆蓋。
+        targets.forEach(block => block.style.setProperty('text-align', value, 'important'));
+      } else {
+        // 全元件對齊時同步模型、編輯器與所有既有區塊，避免舊的 inline style 留下衝突。
+        el.textAlign = value;
+        editor.style.setProperty('text-align', value, 'important');
+        blocks.forEach(block => block.style.setProperty('text-align', value, 'important'));
+      }
+      el.richHtml = editor.innerHTML;
+      el.text = editor.innerText.replace(/\r/g, '');
+      saveCertRichSelection();
+      renderCertStudioCanvas();
+    }
+
+    function formatCertRichText(command, value) {
+      const editor = document.getElementById('certElemRichText');
+      const el = certStudioState.elements.find(e => e.id === certStudioState.activeElementId);
+      if (!editor || !el) return;
+      const restored = restoreCertRichSelection();
+      const sel = window.getSelection();
+      if (!restored || !sel || !sel.rangeCount || sel.getRangeAt(0).collapsed) {
+        showToast('請先在文字編輯框內框選要修改的文字。', 'info');
+        return;
+      }
+      let range = sel.getRangeAt(0);
+      if (!editor.contains(range.commonAncestorContainer)) return;
+
+      if (command === 'fontSizePx' || command === 'fontName' || command === 'lineHeight') {
+        const wrapper = document.createElement('span');
+        if (command === 'fontSizePx') {
+          const px = Math.max(8, Math.min(120, parseInt(value, 10) || 12));
+          wrapper.style.setProperty('font-size', `${px}px`, 'important');
+          // 不沿用舊字級留下的固定行高；normal 會依新字級重新計算。
+          wrapper.style.setProperty('line-height', 'normal', 'important');
+        } else if (command === 'fontName') {
+          wrapper.style.setProperty('font-family', value, 'important');
+        } else {
+          const ratio = Math.max(1, Math.min(3, parseFloat(value) || 1.6));
+          wrapper.style.setProperty('line-height', String(ratio), 'important');
+          // 行距以無單位倍率設定，隨字級縮放；不使用 inline-block，避免行盒被撐高。
+        }
+
+        // 抽取選取內容後，清除內容內舊有的同類格式，避免巢狀 span 的舊字級／行高蓋過新設定。
+        const fragment = range.extractContents();
+        // 舊版 execCommand 可能產生 <font size> 或巢狀區塊；先移除舊字級／行高，避免放大後縮小仍殘留舊行距。
+        const legacyFonts = Array.from(fragment.querySelectorAll ? fragment.querySelectorAll('font') : []);
+        legacyFonts.forEach(font => {
+          const parent = font.parentNode;
+          while (font.firstChild) parent.insertBefore(font.firstChild, font);
+          parent.removeChild(font);
+        });
+        const nodes = Array.from(fragment.querySelectorAll ? fragment.querySelectorAll('*') : []);
+        nodes.forEach(node => {
+          if (node.style) {
+            if (command === 'fontSizePx') node.style.removeProperty('font-size');
+            if (command === 'lineHeight') node.style.removeProperty('line-height');
+            if (command === 'fontName') node.style.removeProperty('font-family');
+            if (!node.getAttribute('style')?.trim()) node.removeAttribute('style');
+          }
+          node.removeAttribute?.('size');
+        });
+        wrapper.appendChild(fragment);
+        range.insertNode(wrapper);
+
+        // 重新取得實際插入的節點，避免多行／跨段落選取時 Range 被瀏覽器重新整理。
+        const nextRange = document.createRange();
+        nextRange.selectNodeContents(wrapper);
+        sel.removeAllRanges();
+        sel.addRange(nextRange);
+      } else if (command === 'foreColor') {
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand('foreColor', false, value || '#000000');
+      } else {
+        document.execCommand(command, false, value || null);
+      }
+      el.richHtml = editor.innerHTML;
+      el.text = editor.innerText.replace(/\r/g, '');
+      saveCertRichSelection();
       renderCertStudioCanvas();
     }
 
     function insertTagToActiveText(tag) {
       const el = certStudioState.elements.find(e => e.id === certStudioState.activeElementId);
-      const elemText = document.getElementById('certElemText');
-      if (!el || el.type !== 'text' || !elemText) return;
-
-      const start = elemText.selectionStart;
-      const end = elemText.selectionEnd;
-      elemText.value = elemText.value.substring(0, start) + tag + elemText.value.substring(end);
-      el.text = elemText.value;
+      const editor = document.getElementById('certElemRichText');
+      if (!el || el.type !== 'text' || !editor) return;
+      restoreCertRichSelection();
+      document.execCommand('insertText', false, tag);
+      el.richHtml = editor.innerHTML;
+      el.text = editor.innerText.replace(/\r/g, '');
       renderCertStudioCanvas();
     }
 
@@ -3819,21 +4026,15 @@
         let contentHtml = '';
 
         if (el.type === 'text') {
-          let previewText = el.text
-            .replace(/{班級}/g, '701 班')
-            .replace(/{姓名}/g, '陳小明')
-            .replace(/{賽事}/g, '[七年級] 男 100公尺')
-            .replace(/{名次}/g, '第一名')
-            .replace(/{成績}/g, '12.35 秒')
-            .replace(/{字號}/g, sampleSerial)
-            .replace(/{學年度}/g, systemConfig.academicYear)
-            .replace(/\n/g, '<br>');
+          let previewText = (el.richHtml || escapeHtmlForCert_(el.text || '').replace(/\n/g, '<br>'))
+            .replace(/{班級}/g, '701 班').replace(/{姓名}/g, '陳小明')
+            .replace(/{賽事}/g, '[七年級] 男 100公尺').replace(/{名次}/g, '第一名')
+            .replace(/{成績}/g, '12.35 秒').replace(/{字號}/g, sampleSerial)
+            .replace(/{學年度}/g, systemConfig.academicYear);
 
-          contentHtml = `
-            <div style="width: 100%; height: 100%; font-size: ${el.fontSize}px; font-family: '${el.fontFamily}'; font-weight: ${el.fontWeight}; color: ${el.color}; text-align: ${el.textAlign}; line-height: 1.35; word-break: break-word; pointer-events: none;">
-              ${previewText}
-            </div>
-          `;
+          // 不可在 pre-wrap 容器內用縮排換行包住 previewText，否則模板字串的換行與空格會被當成真正文字，造成左側／上方留白。
+          // 文字內容緊接容器起始標籤，讓靠左對齊的第一行從元件左上內容原點開始。
+          contentHtml = `<div class="cert-preview-richtext" style="position:absolute;inset:0;box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;font-size:${el.fontSize}px;font-family:'${el.fontFamily}';font-weight:${el.fontWeight};color:${el.color};text-align:${el.textAlign || 'center'};line-height:1;padding:0;margin:0;border:0;vertical-align:top;text-indent:0;pointer-events:none;">${previewText}</div>`;
         } else if (el.type === 'image') {
           contentHtml = `<img src="${el.src}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;">`;
         }
@@ -4082,6 +4283,8 @@
     function openCertBatchPrintModal() {
       const rankSel = document.getElementById('certBatchFilterRank');
       if (rankSel) rankSel.value = 'auto';
+      const stageSel = document.getElementById('certBatchFilterStage');
+      if (stageSel) stageSel.value = 'final';
       const showPrinted = document.getElementById('certShowPrinted');
       if (showPrinted) showPrinted.checked = false;
       refreshEventCategoryDropdowns();
@@ -4126,6 +4329,7 @@
       const g = document.getElementById('certBatchFilterGrade').value;
       const c = document.getElementById('certBatchFilterCategory').value;
       const selectedEventId = document.getElementById('certBatchFilterEvent').value;
+      const selectedStage = document.getElementById('certBatchFilterStage')?.value || 'final';
       const container = document.getElementById('certBatchCandidatesContainer');
       const countEl = document.getElementById('certSelectedCountText');
       if (!container) return;
@@ -4138,7 +4342,8 @@
         const matchG = (g === 'all' || ev.grade === g);
         const matchC = (c === 'all' || ev.category === c);
         const matchE = (selectedEventId === 'all' || ev.id === selectedEventId);
-        if (!(matchG && matchC && matchE && r.rank > 0)) return false;
+        const matchStage = (selectedStage === 'all' || (r.stage || 'final') === selectedStage);
+        if (!(matchG && matchC && matchE && matchStage && r.rank > 0)) return false;
         if (!showPrinted && isCertPrinted(r)) return false;
         const quota = getEventAwardQuota(ev);
         if (rankFilter === 'auto') return r.rank <= quota;
@@ -4288,7 +4493,7 @@
             .replace(/\n/g, '<br>');
 
           return `
-            <div style="position: absolute; left: ${el.x}px; top: ${el.y}px; width: ${el.width}px; height: ${el.height}px; font-size: ${el.fontSize}px; font-family: '${el.fontFamily}'; font-weight: ${el.fontWeight}; color: ${el.color}; text-align: ${el.textAlign}; line-height: 1.35; word-break: break-word;">
+            <div style="position:absolute;left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${el.height}px;box-sizing:border-box;overflow:hidden;font-size:${el.fontSize}px;font-family:'${el.fontFamily}';font-weight:${el.fontWeight};color:${el.color};text-align:${el.textAlign};line-height:normal;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;margin:0;padding:0;">
               ${text}
             </div>
           `;
@@ -4754,6 +4959,44 @@
       });
     }
 
+    async function exportAllAwardWinnersExcel() {
+      // 匯出前重新讀取 GAS 最新完整賽事資料，避免使用頁面初始載入的內建示範名單。
+      saveLocalEventSnapshot();
+      const loadedLatest = await loadCloudPublicState(true);
+      if (!loadedLatest || !(Number(cloudStateLastUpdatedAt) > 0)) {
+        showToast('GAS 尚未提供可確認的完整賽事資料；已優先使用本機保存的名單與成績。請登入管理員後同步雲端，避免其他裝置資料不同步。', 'error');
+      }
+      const rows = [['學年度','年級','賽事項目','類別','名次','班級','座號','姓名','成績','單位','賽事階段']];
+      const winners = eventResults.filter(r => {
+        const ev = eventsList.find(e => e.id === r.eventId);
+        return ev && r.stage === 'final' && Number(r.rank) > 0 && Number(r.rank) <= getEventAwardQuota(ev);
+      }).map(r => ({ r, ev: eventsList.find(e => e.id === r.eventId) }))
+        .sort((a,b) => Number(a.ev.grade)-Number(b.ev.grade) || (a.ev.name||'').localeCompare(b.ev.name||'', 'zh-Hant') || Number(a.r.rank)-Number(b.r.rank) || String(a.r.classId||'').localeCompare(String(b.r.classId||''), 'zh-Hant'));
+      if (!winners.length) { showToast('目前沒有已核定且符合獲獎名次的決賽紀錄。', 'error'); return; }
+      winners.forEach(({r,ev}) => {
+        const classId = String(r.classId || r.class || '');
+        const winnerName = String(r.name || r.studentName || '');
+        const resultStudentId = String(r.studentId || r.student_id || '');
+        const resultStudentNo = String(r.studentNo || r.studentNoId || r.studentNumber || r.schoolStudentNo || '');
+        // 優先用學生唯一識別碼／學號對應全校名冊，避免同名學生抓到錯誤座號；再以班級＋姓名補查。
+        const normClass = v => String(v || '').replace(/班/g, '').replace(/\s+/g, '').trim();
+        const student = studentsList.find(st => resultStudentId && String(st.id || st.studentId || '') === resultStudentId)
+          || studentsList.find(st => resultStudentNo && String(st.studentNo || st.studentNumber || st.schoolStudentNo || st.student_no || '') === resultStudentNo)
+          || studentsList.find(st => normClass(st.classId || st.class || st.className) === normClass(classId) && String(st.name || st.studentName || '').trim() === winnerName.trim());
+        const seat = student
+          ? (student.seat ?? student.seatNo ?? student.seatNumber ?? student.seat_no ?? student.number ?? r.seat ?? r.seatNo ?? r.seatNumber ?? '')
+          : (r.seat ?? r.seatNo ?? r.seatNumber ?? '');
+        rows.push([systemConfig.academicYear || '', `${ev.grade || ''}年級`, ev.name || '', ev.category || '', r.rankLabel || `第${r.rank}名`, classId, seat, winnerName, r.score ?? r.result ?? '', r.unit || ev.unit || '', '決賽']);
+      });
+      const csv = '\uFEFF' + rows.map(row => row.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `全校運動會獲獎學生名單_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showToast(`已匯出 ${winners.length} 筆獲獎紀錄（Excel 可直接開啟 CSV）。`, 'success');
+    }
+
     function executePosterPrint() {
       const isManual = document.getElementById('posterModeBadge').innerText.includes('手寫');
       closeModal('posterPrintModal');
@@ -5145,7 +5388,8 @@
         const hasFullState = result.hasFullState === true ||
           (result.data && Array.isArray(result.data.eventsList) && result.data.eventsList.length > 0);
         if (Number(result.updatedAt || 0) > 0 && result.data && hasFullState) {
-          applyCloudState(result.data);
+          const recoveredLocalSnapshot = restoreLocalEventSnapshotIfCloudIsDemo(result.data, result.updatedAt);
+          if (!recoveredLocalSnapshot) applyCloudState(result.data);
           cloudStateLastUpdatedAt = Number(result.updatedAt || 0);
           if (!silent) showToast('已從 GAS 載入雲端賽事資料');
         }
@@ -5599,6 +5843,10 @@
       renderAdminStudents();
       renderAdminAccounts();
       await loadCloudStudentData(true);
+      saveLocalEventSnapshot();
+      // 定期備份目前名單／棒次／成績，防止切換功能或意外重整時回到示範資料。
+      setInterval(saveLocalEventSnapshot, 5000);
+      window.addEventListener('beforeunload', saveLocalEventSnapshot);
 
       refreshEventCategoryDropdowns();
       refreshPublicCategoryButtons();
