@@ -3255,7 +3255,7 @@
       if (preferredStudentId && list.some(s => s.id === preferredStudentId)) studentSel.value = preferredStudentId;
     }
 
-    function saveRegistrationEditModal() {
+    async function saveRegistrationEditModal() {
       const regId = document.getElementById('editingRegistrationId').value;
       const eventId = document.getElementById('registrationEditEvent').value;
       const classId = document.getElementById('registrationEditClass').value;
@@ -3335,19 +3335,29 @@
         athleteRegistrations.push(payload);
       }
 
+      // 先寫入本機快照，避免網路中斷時資料立即遺失；接著同步至 GAS，才能跨瀏覽器／重新開啟保留。
       saveLocalEventSnapshot();
       closeModal('registrationEditModal');
       initRegFilters();
       renderAdminRegistrationsTable();
-      showToast(regId ? `已更新 ${student.name} 的參賽資料` : `已新增 ${student.name} 參賽資料`);
+      showToast(regId ? `已更新 ${student.name} 的參賽資料，正在同步雲端…` : `已新增 ${student.name} 參賽資料，正在同步雲端…`);
+      const cloudSaved = await syncFullStateToCloud(false);
+      if (cloudSaved) {
+        saveLocalEventSnapshot();
+        showToast(regId ? `已更新 ${student.name} 的參賽資料，並已儲存至雲端` : `已新增 ${student.name} 參賽資料，並已儲存至雲端`);
+      } else {
+        showToast('資料已暫存於這台電腦，但尚未成功儲存至雲端。請確認以大會管理員帳號登入及網路連線後，再重新儲存。', 'error');
+      }
     }
 
     function deleteAthleteReg(id) {
-      showConfirmModal('確認移除選手', '確定要從名冊中移除此位參賽選手嗎？', () => {
+      showConfirmModal('確認移除選手', '確定要從名冊中移除此位參賽選手嗎？', async () => {
         athleteRegistrations = athleteRegistrations.filter(r => r.id !== id);
         saveLocalEventSnapshot();
         renderAdminRegistrationsTable();
-        showToast('選手已移除');
+        const cloudSaved = await syncFullStateToCloud(false);
+        if (cloudSaved) showToast('選手已移除，並已同步至雲端');
+        else showToast('選手已在本機移除，但雲端尚未同步；請確認管理員登入與網路後重試。', 'error');
       });
     }
 
