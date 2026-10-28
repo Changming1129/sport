@@ -5204,7 +5204,7 @@
       });
     }
 
-    function addClassStudentToEvent() {
+    async function addClassStudentToEvent() {
       if (!currentUser || currentUser.role !== 'class') return;
 
       const regStatus = checkRegistrationTimeWindow();
@@ -5262,10 +5262,13 @@
       });
 
       onClassSelectEvent();
-      showToast(`已成功指派 ${student.name} 參賽！`);
+      saveLocalEventSnapshot();
+      const saved = await syncFullStateToCloud(false);
+      if (saved) showToast(`已成功指派 ${student.name} 參賽，並已儲存至雲端！`, 'success');
+      else showToast(`已指派 ${student.name}，但雲端儲存失敗；管理員目前可能看不到此筆報名，請確認班級帳號已完成 GAS 授權後重試。`, 'error');
     }
 
-    function removeClassAthlete(regId) {
+    async function removeClassAthlete(regId) {
       const regStatus = checkRegistrationTimeWindow();
       if (!regStatus.isOpen) {
         showToast('報名時間已截止，無法異動名單！', 'error');
@@ -5273,7 +5276,10 @@
       }
       athleteRegistrations = athleteRegistrations.filter(r => r.id !== regId);
       onClassSelectEvent();
-      showToast('已移除選手');
+      saveLocalEventSnapshot();
+      const saved = await syncFullStateToCloud(false);
+      if (saved) showToast('已移除選手，並已同步更新雲端名單！', 'success');
+      else showToast('已移除選手，但雲端儲存失敗；管理員端可能仍會看到舊名單。請重新登入後重試。', 'error');
     }
 
     function switchLoginRole(role) {
@@ -5424,8 +5430,9 @@
     }
 
     async function syncFullStateToCloud(showMessage = true) {
-      if (!gasSessionToken || !currentUser || currentUser.role !== 'admin') {
-        if (showMessage) showToast('本機操作已完成，但尚未取得 GAS 管理員雲端授權；請重新以管理員帳密登入後再同步。', 'error');
+      // 管理員可儲存完整狀態；班級帳號由 GAS 後端限制只能合併自己的班級報名資料。
+      if (!gasSessionToken || !currentUser || !['admin', 'class'].includes(currentUser.role)) {
+        if (showMessage) showToast('目前尚未取得 GAS 雲端授權；請重新登入後再同步，否則資料只會留在本機。', 'error');
         return false;
       }
       if (cloudStateSaveInProgress) return false;
@@ -5487,9 +5494,26 @@
         const pwd = document.getElementById('classPasswordInput').value.trim();
         if (classAccounts[cls] && classAccounts[cls] === pwd) {
           currentUser = { role: 'class', classId: cls };
-          closeModal('loginModal');
-          showClassPortal(cls);
-          showToast(`已登入 ${cls} 班專區！`);
+          const gasUrl = getGasWebAppUrl();
+          if (gasUrl) {
+            try {
+              // 班級帳號必須建立 GAS 工作階段，才能將報名資料安全地寫回雲端。
+              await loginToGas(cls, pwd); // GAS 後端會自行轉成 class_<班級>，前端不可重複加前綴
+              currentUser = { role: 'class', classId: cls };
+              closeModal('loginModal');
+              showClassPortal(cls);
+              showToast(`已登入 ${cls} 班專區，雲端同步已啟用！`, 'success');
+            } catch (err) {
+              gasSessionToken = null;
+              closeModal('loginModal');
+              showClassPortal(cls);
+              showToast(`已進入 ${cls} 班專區，但雲端授權失敗，報名資料無法提供管理員查看：${err.message || err}。請通知管理員同步班級帳號後重新登入。`, 'error');
+            }
+          } else {
+            closeModal('loginModal');
+            showClassPortal(cls);
+            showToast(`已登入 ${cls} 班專區；目前未設定 GAS，報名資料只會保留在本機。`, 'error');
+          }
         } else { showToast('班級密碼不符，請向體育組確認！', 'error'); }
       }
     }
