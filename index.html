@@ -1963,6 +1963,23 @@
     </div>
   </div>
 
+  <!-- 分組與道次編排方式 -->
+  <div id="groupAllocationModeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+        <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-list-ol text-lg"></i></div>
+        <div><h3 class="font-black text-slate-900">選擇分組與道次編排方式</h3><p class="text-xs text-slate-500 mt-1">每項賽事分開編排，每組依序安排 1～8 道</p></div>
+      </div>
+      <button onclick="applyGroupAllocation('random')" class="w-full text-left p-4 rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 hover:bg-indigo-50 transition">
+        <div class="font-black text-indigo-700"><i class="fa-solid fa-shuffle mr-2"></i>隨機抽籤</div><p class="text-sm text-slate-500 mt-1">選手順序隨機打散，再依序分配組別與跑道。</p>
+      </button>
+      <button onclick="applyGroupAllocation('class')" class="w-full text-left p-4 rounded-2xl border-2 border-emerald-100 hover:border-emerald-500 hover:bg-emerald-50 transition">
+        <div class="font-black text-emerald-700"><i class="fa-solid fa-arrow-down-1-9 mr-2"></i>依班級順排（小到大）</div><p class="text-sm text-slate-500 mt-1">例如 701、702、703……；同班再依座號排序。</p>
+      </button>
+      <div class="flex justify-end pt-1"><button onclick="closeModal('groupAllocationModeModal')" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm">取消</button></div>
+    </div>
+  </div>
+
   <!-- Print Area Container -->
   <div id="printArea"></div>
 
@@ -3362,25 +3379,45 @@
     }
 
     function openGroupAllocationModal() {
-      showConfirmModal('一鍵隨機抽籤編排組別與道次', '確定要針對當前所有已報名項目，進行隨機組別抽籤與 1~8 跑道/序位分配嗎？', () => {
-        const groupsByEvent = {};
-        athleteRegistrations.forEach(r => {
-          if (!groupsByEvent[r.eventId]) groupsByEvent[r.eventId] = [];
-          groupsByEvent[r.eventId].push(r);
-        });
+      openModal('groupAllocationModeModal');
+    }
 
-        Object.keys(groupsByEvent).forEach(eventId => {
-          const list = groupsByEvent[eventId];
-          list.sort(() => Math.random() - 0.5);
-          list.forEach((reg, idx) => {
-            reg.group = Math.floor(idx / 8) + 1;
-            reg.lane = (idx % 8) + 1;
-          });
-        });
-
-        renderAdminRegistrationsTable();
-        showToast('已完成全校項目分組與道次序位抽籤編配！');
+    async function applyGroupAllocation(mode) {
+      closeModal('groupAllocationModeModal');
+      const groupsByEvent = {};
+      athleteRegistrations.forEach(r => {
+        if (!groupsByEvent[r.eventId]) groupsByEvent[r.eventId] = [];
+        groupsByEvent[r.eventId].push(r);
       });
+
+      Object.keys(groupsByEvent).forEach(eventId => {
+        const list = groupsByEvent[eventId];
+        if (mode === 'class') {
+          // 班級依數字由小到大；同班再依座號、姓名排序，確保編排結果穩定。
+          list.sort((a, b) => {
+            const classCompare = String(a.classId || '').localeCompare(String(b.classId || ''), 'zh-Hant', { numeric: true });
+            if (classCompare !== 0) return classCompare;
+            const seatA = parseInt(a.seatNo || a.seat || 0, 10) || 0;
+            const seatB = parseInt(b.seatNo || b.seat || 0, 10) || 0;
+            if (seatA !== seatB) return seatA - seatB;
+            return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant');
+          });
+        } else {
+          list.sort(() => Math.random() - 0.5);
+        }
+        list.forEach((reg, idx) => {
+          reg.group = Math.floor(idx / 8) + 1;
+          reg.lane = (idx % 8) + 1;
+        });
+      });
+
+      saveLocalEventSnapshot();
+      renderAdminRegistrationsTable();
+      const modeLabel = mode === 'class' ? '依班級順序' : '隨機抽籤';
+      showToast(`已完成${modeLabel}分組與道次編排，正在同步雲端…`);
+      const cloudSaved = await syncFullStateToCloud(false);
+      if (cloudSaved) showToast(`已完成${modeLabel}分組與道次編排，並已儲存至雲端`);
+      else showToast('編排已暫存於本機，但雲端尚未同步；請確認管理員登入及網路連線。', 'error');
     }
 
     function initScoreFilters() {
