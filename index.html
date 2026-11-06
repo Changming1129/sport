@@ -591,6 +591,11 @@
               <select id="eventFilterCategory" onchange="renderAdminEventsTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm font-bold">
                 <option value="all">全部種類</option>
               </select>
+              <select id="eventFilterMissing" onchange="renderAdminEventsTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm font-bold">
+                <option value="all">全部報名狀態</option>
+                <option value="missing">只看有未報名班級</option>
+                <option value="required">只看強制報名賽事</option>
+              </select>
               <input type="text" id="eventSearchInput" oninput="renderAdminEventsTable()" placeholder="搜尋賽事名稱..." class="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm w-48 sm:w-60">
             </div>
             <div class="flex items-center space-x-2">
@@ -614,6 +619,7 @@
                   <th class="p-3.5">名額規範</th>
                   <th class="p-3.5">獲獎頒獎名額</th>
                   <th class="p-3.5">目前報名</th>
+                  <th class="p-3.5">班級報名檢查</th>
                   <th class="p-3.5 text-right">操作</th>
                 </tr>
               </thead>
@@ -1473,6 +1479,17 @@
             <option value="higher">高數值優勝（如 跳遠 5.2公尺 優於 4.8公尺）</option>
           </select>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3 bg-sky-50 border border-sky-200 rounded-xl sm:col-span-2">
+            <label class="block font-bold text-sky-950 mb-2">本賽事各跑道服裝顏色</label>
+            <div id="eventLaneColorsGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
+            <p class="text-[11px] text-sky-800 mt-2">此設定僅在系統選擇「各賽事分別設定跑道顏色」時生效；每一道可設定不同服裝顏色。</p>
+          </div>
+          <label class="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer">
+            <input type="checkbox" id="eventEditRequireClass" class="w-4 h-4 mt-0.5">
+            <span><b class="text-amber-950">強制班級報名</b><small class="block text-xs text-amber-800 mt-1">勾選後，未報名班級會在賽事列表顯示警示，並可篩選缺漏項目。</small></span>
+          </label>
+        </div>
       </div>
 
       <div class="flex justify-end space-x-2 pt-3 border-t">
@@ -1892,6 +1909,23 @@
           </div>
         </div>
 
+        <div class="p-4 bg-sky-50 border border-sky-200 rounded-2xl space-y-3">
+          <div class="font-black text-sky-950">終點計時服裝顏色標示</div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">顏色套用方式</label>
+            <select id="settingLaneColorMode" class="w-full bg-white border border-sky-300 rounded-xl p-2.5 font-bold">
+              <option value="unified">所有賽事共用同一套跑道顏色</option>
+              <option value="individual">各賽事分別設定跑道顏色</option>
+            </select>
+          </div>
+          <div class="mt-3 p-3 bg-white border border-sky-200 rounded-xl">
+            <div class="font-bold text-sky-950 mb-2">所有賽事共用跑道顏色</div>
+            <div id="globalLaneColorsGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
+            <p class="text-[11px] text-sky-700 mt-2">統一模式下，所有賽事依第 1～8 道套用這組服裝顏色。</p>
+          </div>
+          <p class="text-xs text-sky-800">選擇「所有賽事共用」時，全部賽事的第 1～8 道使用同一組顏色；選擇「各賽事分別設定」時，可進入個別賽事設定該賽事第 1～8 道的顏色。顏色顯示於參賽名單及成績／終點計時名單。</p>
+        </div>
+
         <!-- Google Apps Script URL Integration Block (依圖四規格) -->
         <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2.5 text-xs sm:text-sm">
           <div class="font-bold text-emerald-950 flex items-center">
@@ -2031,6 +2065,9 @@
       subTitle: '賽事報名與成績海報管理系統',
       regStartDate: '',
       regEndDate: '',
+      laneColorMode: 'unified',
+      defaultLaneColor: '#2563eb',
+      globalLaneColors: {1:'#2563eb',2:'#dc2626',3:'#16a34a',4:'#eab308',5:'#9333ea',6:'#ea580c',7:'#0891b2',8:'#db2777'},
       maxIndividualEvents: 2,
       // 全校共用的 Google Apps Script Web App 網址：所有人開啟 GitHub 網頁時自動帶入
       googleSheetUrl: 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec'
@@ -2086,7 +2123,7 @@
     ];
 
     // 舊版資料相容：若沒有獲獎名額設定，預設取前 6 名。
-    eventsList.forEach(e => { e.awardQuota = normalizeAwardQuota(e.awardQuota); });
+    eventsList.forEach(e => { e.awardQuota = normalizeAwardQuota(e.awardQuota); if (!e.laneColor) e.laneColor = '#2563eb'; e.requireClassRegistration = !!e.requireClassRegistration; });
 
     let announcementsList = [
       { id: 'A001', title: '115 學年度全校運動大會競賽規程修訂公告', date: '2026-09-01', content: '各位導師與體育股長好：<br>本學年度全校運動會線上報名已正式啟動！<br><b>【體育班並列排名規則】</b>普通班次席與體育班榜首將並列第一名頒發獎狀以資鼓勵。請各班於期限內完成名冊確認。' },
@@ -2140,20 +2177,25 @@
       ]
     };
 
+    // datetime-local 不含時區；一律以台灣使用者瀏覽器的本地時間解析與顯示，避免雲端 ISO 時間造成欄位無效。
+    function normalizeDateTimeLocal(value) {
+      if (!value) return '';
+      const raw = String(value).trim();
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) return raw;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
     function checkRegistrationTimeWindow() {
       const now = new Date();
-      if (systemConfig.regStartDate) {
-        const start = new Date(systemConfig.regStartDate);
-        if (now < start) {
-          return { isOpen: false, message: `線上報名尚未開始 (預計於 ${systemConfig.regStartDate.replace('T', ' ')} 開放)` };
-        }
-      }
-      if (systemConfig.regEndDate) {
-        const end = new Date(systemConfig.regEndDate);
-        if (now > end) {
-          return { isOpen: false, message: `線上報名已截止 (截止於 ${systemConfig.regEndDate.replace('T', ' ')})` };
-        }
-      }
+      const startValue = normalizeDateTimeLocal(systemConfig.regStartDate);
+      const endValue = normalizeDateTimeLocal(systemConfig.regEndDate);
+      const start = startValue ? new Date(startValue) : null;
+      const end = endValue ? new Date(endValue) : null;
+      if (start && now < start) return { isOpen: false, message: `線上報名尚未開始（預計於 ${startValue.replace('T', ' ')} 開放）` };
+      if (end && now > end) return { isOpen: false, message: `線上報名已截止（截止於 ${endValue.replace('T', ' ')}）` };
       return { isOpen: true, message: '目前開放線上報名中' };
     }
 
@@ -2565,22 +2607,65 @@
       });
     }
 
+    const DEFAULT_LANE_COLORS = {1:'#2563eb',2:'#dc2626',3:'#16a34a',4:'#eab308',5:'#9333ea',6:'#ea580c',7:'#0891b2',8:'#db2777'};
+    function getLaneColorSet(source) {
+      const result = {};
+      for (let lane = 1; lane <= 8; lane++) result[lane] = (source && source[lane]) || DEFAULT_LANE_COLORS[lane];
+      return result;
+    }
+    function getEventLaneColor(event, lane) {
+      const laneNo = Math.max(1, Math.min(8, Number(lane) || 1));
+      if (systemConfig.laneColorMode !== 'individual') {
+        const colors = getLaneColorSet(systemConfig.globalLaneColors);
+        return colors[laneNo];
+      }
+      const colors = getLaneColorSet(event && event.laneColors);
+      return colors[laneNo];
+    }
+    function renderLaneColorPickers(containerId, colors) {
+      const el = document.getElementById(containerId); if (!el) return;
+      const palette = getLaneColorSet(colors);
+      el.innerHTML = Array.from({length:8}, (_,i) => { const n=i+1; return `<label class="text-center text-xs font-bold text-slate-700">第${n}道<input type="color" data-lane-color="${n}" value="${palette[n]}" class="mt-1 w-full h-9 border border-slate-300 rounded-lg p-1 bg-white"></label>`; }).join('');
+    }
+    function readLaneColorPickers(containerId) {
+      const el = document.getElementById(containerId); const out = {};
+      if (el) el.querySelectorAll('[data-lane-color]').forEach(input => out[input.dataset.laneColor] = input.value);
+      return getLaneColorSet(out);
+    }
+
+    function getEventMissingClasses(event) {
+      if (!event || !event.requireClassRegistration) return [];
+      const classIds = [...new Set([...(studentsList || []).map(st => String(st.classId || '')), ...Object.keys(classAccounts || {})].filter(Boolean))];
+      const eligible = classIds.filter(cls => event.grade === 'all_school' || cls.charAt(0) === String(event.grade));
+      const registered = new Set(athleteRegistrations.filter(r => r.eventId === event.id && !r.isReserve).map(r => String(r.classId)));
+      return eligible.filter(cls => !registered.has(cls)).sort((a,b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
+    }
+
     function renderAdminEventsTable() {
       const tbody = document.getElementById('adminEventsTableBody');
       if (!tbody) return;
       const gFilter = document.getElementById('eventFilterGrade').value;
       const cFilter = document.getElementById('eventFilterCategory').value;
       const sTerm = (document.getElementById('eventSearchInput').value || '').trim().toLowerCase();
+      const missingFilter = document.getElementById('eventFilterMissing')?.value || 'all';
 
       const filtered = eventsList.filter(e => {
         const matchG = (gFilter === 'all' || e.grade === gFilter);
         const matchC = (cFilter === 'all' || e.category === cFilter);
         const matchS = (!sTerm || e.name.toLowerCase().includes(sTerm));
-        return matchG && matchC && matchS;
+        const missing = getEventMissingClasses(e);
+        const matchMissing = missingFilter === 'all' || (missingFilter === 'required' && !!e.requireClassRegistration) || (missingFilter === 'missing' && !!e.requireClassRegistration && missing.length > 0);
+        return matchG && matchC && matchS && matchMissing;
       });
 
       tbody.innerHTML = filtered.map(e => {
         const regCount = athleteRegistrations.filter(r => r.eventId === e.id).length;
+        const missingClasses = getEventMissingClasses(e);
+        const registrationStatus = !e.requireClassRegistration
+          ? '<span class="text-xs text-slate-400">未強制</span>'
+          : (missingClasses.length
+            ? `<span class="inline-flex px-2 py-1 rounded-lg bg-rose-100 text-rose-800 text-xs font-black">缺 ${missingClasses.length} 班</span><div class="text-[11px] text-rose-700 mt-1 max-w-48 whitespace-normal">${missingClasses.join('、')}</div>`
+            : '<span class="inline-flex px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-black">全班已報名</span>');
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3.5 font-bold">${e.grade === 'all_school' ? '全校' : e.grade + ' 年級'}</td>
@@ -2590,6 +2675,7 @@
             <td class="p-3.5 font-mono">正選 ${e.regularQuota} 人 ${e.reserveQuota ? `/ 候補 ${e.reserveQuota} 人` : ''}</td>
             <td class="p-3.5"><span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">取前 ${getEventAwardQuota(e)} 名</span></td>
             <td class="p-3.5"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ${regCount > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">${regCount} 人</span></td>
+            <td class="p-3.5">${registrationStatus}</td>
             <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
               <button onclick="openEditEventModal('${e.id}')" class="text-indigo-600 hover:text-indigo-800 font-bold"><i class="fa-solid fa-pen-to-square mr-1"></i>編輯</button>
               <button onclick="deleteEvent('${e.id}')" class="text-rose-600 hover:text-rose-800 font-bold"><i class="fa-solid fa-trash mr-1"></i>刪除</button>
@@ -2612,6 +2698,8 @@
       document.getElementById('eventEditAwardQuota').value = '6';
       document.getElementById('eventEditUnit').value = '秒';
       document.getElementById('eventEditSortRule').value = 'lower';
+      renderLaneColorPickers('eventLaneColorsGrid', systemConfig.globalLaneColors);
+      document.getElementById('eventEditRequireClass').checked = false;
       openModal('eventEditModal');
     }
 
@@ -2630,6 +2718,8 @@
       document.getElementById('eventEditAwardQuota').value = getEventAwardQuota(e);
       document.getElementById('eventEditUnit').value = e.unit || '秒';
       document.getElementById('eventEditSortRule').value = e.sortLowerBetter ? 'lower' : 'higher';
+      renderLaneColorPickers('eventLaneColorsGrid', e.laneColors || systemConfig.globalLaneColors);
+      document.getElementById('eventEditRequireClass').checked = !!e.requireClassRegistration;
       openModal('eventEditModal');
     }
 
@@ -2666,6 +2756,8 @@
       const awardQuota = normalizeAwardQuota(parseInt(document.getElementById('eventEditAwardQuota').value));
       const unit = document.getElementById('eventEditUnit').value.trim() || '秒';
       const sortLowerBetter = (document.getElementById('eventEditSortRule').value === 'lower');
+      const laneColors = readLaneColorPickers('eventLaneColorsGrid');
+      const requireClassRegistration = document.getElementById('eventEditRequireClass').checked;
 
       if (id) {
         const item = eventsList.find(x => x.id === id);
@@ -2674,11 +2766,12 @@
           item.gender = gender; item.regularQuota = regularQuota;
           item.reserveQuota = reserveQuota; item.awardQuota = awardQuota; item.unit = unit;
           item.sortLowerBetter = sortLowerBetter;
+          item.laneColors = laneColors; item.laneColor = laneColors[1]; item.requireClassRegistration = requireClassRegistration;
         }
         showToast(`已更新賽事：${name}`);
       } else {
         const newId = 'E' + (eventsList.length > 0 ? (Math.max(...eventsList.map(e => parseInt(e.id.replace(/\D/g, '')) || 0)) + 1) : 701);
-        eventsList.push({ id: newId, grade, name, category, gender, regularQuota, reserveQuota, sortLowerBetter, unit, awardQuota });
+        eventsList.push({ id: newId, grade, name, category, gender, regularQuota, reserveQuota, sortLowerBetter, unit, awardQuota, laneColors, laneColor: laneColors[1], requireClassRegistration });
         showToast(`已建立新賽事：${name}`);
       }
 
@@ -3211,6 +3304,7 @@
       tbody.innerHTML = filtered.map(r => {
         const ev = eventsList.find(x => x.id === r.eventId) || { name: '未知項目' };
         const isSports = (classTypesMap[r.classId] === 'sports');
+        const laneColor = getEventLaneColor(ev, r.lane);
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3.5 font-bold">${r.grade} 年級</td>
@@ -3226,7 +3320,7 @@
               ${r.leg ? `<span class="ml-1 text-xs text-indigo-600">[第${r.leg}棒]</span>` : ''}
             </td>
             <td class="p-3.5 font-mono font-bold">第 ${r.group || 1} 組</td>
-            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap">第 ${r.lane || 1} 道 / 序位</td>
+            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap"><span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>第 ${r.lane || 1} 道 / 序位</td>
             <td class="p-3.5 text-right whitespace-nowrap">
               <div class="flex items-center justify-end gap-2">
                 <button onclick="openRegistrationEditModal('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs">
@@ -3240,6 +3334,8 @@
           </tr>
         `;
       }).join('');
+      // 班級報名狀態異動後，同步更新賽事管理端的未報名班級警示。
+      renderAdminEventsTable();
     }
 
     function openRegistrationEditModal(regId = '') {
@@ -3496,11 +3592,12 @@
         const isAwardWinner = existing && existing.rank > 0 && existing.rank <= awardQuota;
         const curRank = existing ? existing.rankLabel : '－';
         const isSports = (classTypesMap[cand.classId] === 'sports');
+        const laneColor = getEventLaneColor(targetEvent, cand.lane);
 
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3.5 font-mono font-bold">第 ${cand.group || 1} 組</td>
-            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap">第 ${cand.lane || 1} 道</td>
+            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap"><span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>第 ${cand.lane || 1} 道</td>
             <td class="p-3.5 font-bold">${cand.classId} 班</td>
             <td class="p-3.5 font-black text-slate-900">${cand.name}</td>
             <td class="p-3.5">
@@ -5428,13 +5525,18 @@
       if (data.systemConfig && typeof data.systemConfig === 'object') {
         const keepUrl = systemConfig.googleSheetUrl;
         systemConfig = { ...systemConfig, ...data.systemConfig };
+        systemConfig.regStartDate = normalizeDateTimeLocal(systemConfig.regStartDate);
+        systemConfig.regEndDate = normalizeDateTimeLocal(systemConfig.regEndDate);
+        systemConfig.laneColorMode = systemConfig.laneColorMode || 'unified';
+        systemConfig.defaultLaneColor = systemConfig.defaultLaneColor || '#2563eb';
+        systemConfig.globalLaneColors = getLaneColorSet(systemConfig.globalLaneColors);
         systemConfig.googleSheetUrl = keepUrl;
         if (Number.isInteger(Number(systemConfig.maxIndividualEvents))) {
           try { localStorage.setItem(INDIVIDUAL_EVENT_LIMIT_STORAGE_KEY, String(systemConfig.maxIndividualEvents)); } catch (_) {}
         }
       }
       if (Array.isArray(data.categoriesList)) categoriesList = data.categoriesList;
-      if (Array.isArray(data.eventsList)) eventsList = data.eventsList.map(e => ({ ...e, awardQuota: normalizeAwardQuota(e.awardQuota) }));
+      if (Array.isArray(data.eventsList)) eventsList = data.eventsList.map(e => ({ ...e, awardQuota: normalizeAwardQuota(e.awardQuota), laneColor: e.laneColor || '#2563eb', laneColors: e.laneColors ? getLaneColorSet(e.laneColors) : getLaneColorSet({1:e.laneColor || '#2563eb',2:e.laneColor || '#2563eb',3:e.laneColor || '#2563eb',4:e.laneColor || '#2563eb',5:e.laneColor || '#2563eb',6:e.laneColor || '#2563eb',7:e.laneColor || '#2563eb',8:e.laneColor || '#2563eb'}), requireClassRegistration: !!e.requireClassRegistration }));
       if (Array.isArray(data.studentsList)) studentsList = data.studentsList;
       if (data.classAccounts && typeof data.classAccounts === 'object') classAccounts = data.classAccounts;
       if (data.classTypesMap && typeof data.classTypesMap === 'object') classTypesMap = data.classTypesMap;
@@ -5759,8 +5861,18 @@
       if (sSub) systemConfig.subTitle = sSub.value.trim();
       if (sSchool) systemConfig.schoolName = sSchool.value.trim();
       if (sYear) systemConfig.academicYear = sYear.value.trim();
-      if (sStart) systemConfig.regStartDate = sStart.value;
-      if (sEnd) systemConfig.regEndDate = sEnd.value;
+      const startValue = sStart ? sStart.value : normalizeDateTimeLocal(systemConfig.regStartDate);
+      const endValue = sEnd ? sEnd.value : normalizeDateTimeLocal(systemConfig.regEndDate);
+      if (startValue && endValue && new Date(startValue) > new Date(endValue)) {
+        showToast('報名開始時間不可晚於截止時間！', 'error');
+        if (sEnd) sEnd.focus();
+        return;
+      }
+      systemConfig.regStartDate = startValue;
+      systemConfig.regEndDate = endValue;
+      systemConfig.laneColorMode = document.getElementById('settingLaneColorMode')?.value || systemConfig.laneColorMode || 'unified';
+      systemConfig.globalLaneColors = readLaneColorPickers('globalLaneColorsGrid');
+      systemConfig.defaultLaneColor = systemConfig.globalLaneColors[1] || systemConfig.defaultLaneColor || '#2563eb';
       if (sMaxIndividual) {
         const rawLimit = Number(sMaxIndividual.value);
         if (!Number.isInteger(rawLimit) || rawLimit < 0 || rawLimit > 20) {
@@ -5775,7 +5887,11 @@
 
       applySystemSettingsToUI();
       closeModal('systemSettingsModal');
-      showToast('大會參數已成功儲存套用！');
+      renderAdminEventsTable();
+      renderAdminRegistrationsTable();
+      renderScoreEntryTable();
+      showToast('大會參數已儲存，正在同步雲端…');
+      syncFullStateToCloud(false).then(ok => showToast(ok ? '大會參數已儲存並同步雲端！' : '設定已套用於目前頁面，但雲端同步失敗，請重新登入管理員後重試。', ok ? 'success' : 'error'));
     }
 
     function applySystemSettingsToUI() {
@@ -5798,8 +5914,13 @@
       if (sSub) sSub.value = systemConfig.subTitle;
       if (sSchool) sSchool.value = systemConfig.schoolName;
       if (sYear) sYear.value = systemConfig.academicYear;
-      if (sStart) sStart.value = systemConfig.regStartDate;
-      if (sEnd) sEnd.value = systemConfig.regEndDate;
+      if (sStart) sStart.value = normalizeDateTimeLocal(systemConfig.regStartDate);
+      if (sEnd) sEnd.value = normalizeDateTimeLocal(systemConfig.regEndDate);
+      const colorMode = document.getElementById('settingLaneColorMode');
+      const defaultColor = document.getElementById('settingDefaultLaneColor');
+      renderLaneColorPickers('globalLaneColorsGrid', systemConfig.globalLaneColors);
+      if (colorMode) colorMode.value = systemConfig.laneColorMode || 'unified';
+      if (defaultColor) defaultColor.value = systemConfig.defaultLaneColor || '#2563eb';
       if (sMaxIndividual) sMaxIndividual.value = getMaxIndividualEvents();
       if (sSheet) sSheet.value = systemConfig.googleSheetUrl || 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec';
     }
