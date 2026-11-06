@@ -752,13 +752,13 @@
             <table class="w-full text-left text-sm text-slate-700">
               <thead class="bg-slate-50 text-slate-500 font-bold border-b">
                 <tr>
-                  <th class="p-3.5">年級</th>
-                  <th class="p-3.5">賽事名稱</th>
-                  <th class="p-3.5">班級</th>
+                  <th class="p-3.5"><button type="button" onclick="setRegistrationSort('grade')" class="hover:text-indigo-700 whitespace-nowrap">年級 <span id="regSortIcon-grade">↕</span></button></th>
+                  <th class="p-3.5"><button type="button" onclick="setRegistrationSort('event')" class="hover:text-indigo-700 whitespace-nowrap">賽事名稱 <span id="regSortIcon-event">↕</span></button></th>
+                  <th class="p-3.5"><button type="button" onclick="setRegistrationSort('class')" class="hover:text-indigo-700 whitespace-nowrap">班級 <span id="regSortIcon-class">↕</span></button></th>
                   <th class="p-3.5">屬性</th>
                   <th class="p-3.5">選手名冊 / 棒次</th>
-                  <th class="p-3.5">組別</th>
-                  <th class="p-3.5">道次 / 序位</th>
+                  <th class="p-3.5"><button type="button" onclick="setRegistrationSort('group')" class="hover:text-indigo-700 whitespace-nowrap">組別 <span id="regSortIcon-group">↕</span></button></th>
+                  <th class="p-3.5"><button type="button" onclick="setRegistrationSort('lane')" class="hover:text-indigo-700 whitespace-nowrap">道次 / 序位 <span id="regSortIcon-lane">↕</span></button></th>
                   <th class="p-3.5 text-right">操作</th>
                 </tr>
               </thead>
@@ -2072,6 +2072,8 @@
       return normalizeAwardQuota(event?.awardQuota);
     }
 
+    let registrationSort = { key: 'grade', direction: 'asc' };
+
     let eventsList = [
       { id: 'E701', grade: '7', name: '男 100公尺', category: '徑賽', gender: '男', regularQuota: 2, reserveQuota: 0, sortLowerBetter: true, unit: '秒', awardQuota: 6 },
       { id: 'E702', grade: '7', name: '女 100公尺', category: '徑賽', gender: '女', regularQuota: 2, reserveQuota: 0, sortLowerBetter: true, unit: '秒', awardQuota: 6 },
@@ -3162,6 +3164,29 @@
       renderAdminRegistrationsTable();
     }
 
+    function setRegistrationSort(key) {
+      if (registrationSort.key === key) {
+        registrationSort.direction = registrationSort.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        registrationSort = { key, direction: 'asc' };
+      }
+      renderAdminRegistrationsTable();
+    }
+
+    function compareRegistrationValues(a, b, key) {
+      const evA = eventsList.find(x => x.id === a.eventId) || { name: '未知項目', grade: a.grade };
+      const evB = eventsList.find(x => x.id === b.eventId) || { name: '未知項目', grade: b.grade };
+      const numeric = (x, y) => (Number(x) || 0) - (Number(y) || 0);
+      switch (key) {
+        case 'grade': return numeric(a.grade, b.grade);
+        case 'event': return numeric(evA.grade, evB.grade) || String(evA.name || '').localeCompare(String(evB.name || ''), 'zh-Hant');
+        case 'class': return numeric(String(a.classId).replace(/\D/g, ''), String(b.classId).replace(/\D/g, '')) || String(a.classId).localeCompare(String(b.classId), 'zh-Hant');
+        case 'group': return numeric(a.group, b.group);
+        case 'lane': return numeric(a.lane, b.lane);
+        default: return 0;
+      }
+    }
+
     function renderAdminRegistrationsTable() {
       const tbody = document.getElementById('adminRegistrationsTableBody');
       if (!tbody) return;
@@ -3174,6 +3199,13 @@
         const matchE = (e === 'all' || r.eventId === e);
         const matchC = (c === 'all' || r.classId === c);
         return matchG && matchE && matchC;
+      });
+
+      const direction = registrationSort.direction === 'desc' ? -1 : 1;
+      filtered.sort((a, b) => direction * compareRegistrationValues(a, b, registrationSort.key));
+      ['grade', 'event', 'class', 'group', 'lane'].forEach(key => {
+        const icon = document.getElementById(`regSortIcon-${key}`);
+        if (icon) icon.textContent = registrationSort.key === key ? (registrationSort.direction === 'asc' ? '↑' : '↓') : '↕';
       });
 
       tbody.innerHTML = filtered.map(r => {
