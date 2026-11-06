@@ -1483,7 +1483,7 @@
           <div class="p-3 bg-sky-50 border border-sky-200 rounded-xl sm:col-span-2">
             <label class="block font-bold text-sky-950 mb-2">本賽事各跑道服裝顏色</label>
             <div id="eventLaneColorsGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
-            <p class="text-[11px] text-sky-800 mt-2">此設定僅在系統選擇「各賽事分別設定跑道顏色」時生效；每一道可設定不同服裝顏色。</p>
+            <p class="text-[11px] text-sky-800 mt-2">此設定僅在系統選擇「各賽事分別設定跑道顏色」時生效；每一道可設定色條及顏色名稱（如紅、黃、綠）；黑白列印時仍可辨識。</p>
           </div>
           <label class="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer">
             <input type="checkbox" id="eventEditRequireClass" class="w-4 h-4 mt-0.5">
@@ -1921,7 +1921,7 @@
           <div class="mt-3 p-3 bg-white border border-sky-200 rounded-xl">
             <div class="font-bold text-sky-950 mb-2">所有賽事共用跑道顏色</div>
             <div id="globalLaneColorsGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
-            <p class="text-[11px] text-sky-700 mt-2">統一模式下，所有賽事依第 1～8 道套用這組服裝顏色。</p>
+            <p class="text-[11px] text-sky-700 mt-2">統一模式下，所有賽事依第 1～8 道套用這組服裝顏色及名稱；色條與文字名稱會並排顯示。</p>
           </div>
           <p class="text-xs text-sky-800">選擇「所有賽事共用」時，全部賽事的第 1～8 道使用同一組顏色；選擇「各賽事分別設定」時，可進入個別賽事設定該賽事第 1～8 道的顏色。顏色顯示於參賽名單及成績／終點計時名單。</p>
         </div>
@@ -2068,6 +2068,7 @@
       laneColorMode: 'unified',
       defaultLaneColor: '#2563eb',
       globalLaneColors: {1:'#2563eb',2:'#dc2626',3:'#16a34a',4:'#eab308',5:'#9333ea',6:'#ea580c',7:'#0891b2',8:'#db2777'},
+      globalLaneColorNames: {1:'藍',2:'紅',3:'綠',4:'黃',5:'紫',6:'橘',7:'青',8:'桃紅'},
       maxIndividualEvents: 2,
       // 全校共用的 Google Apps Script Web App 網址：所有人開啟 GitHub 網頁時自動帶入
       googleSheetUrl: 'https://script.google.com/macros/s/AKfycbwugYutwMlw404XCK1HoPf_8xxpw2EDh0rmNl0OS1A3B-9wscDXBhVSa3uEZwkBBPzqNA/exec'
@@ -2613,6 +2614,19 @@
       for (let lane = 1; lane <= 8; lane++) result[lane] = (source && source[lane]) || DEFAULT_LANE_COLORS[lane];
       return result;
     }
+    function getLaneColorNameSet(source) {
+      const defaults = {1:'藍',2:'紅',3:'綠',4:'黃',5:'紫',6:'橘',7:'青',8:'桃紅'};
+      const result = {};
+      for (let lane = 1; lane <= 8; lane++) result[lane] = (source && source[lane] != null && String(source[lane]).trim()) || defaults[lane];
+      return result;
+    }
+    function getEventLaneColorName(event, lane) {
+      const laneNo = Math.max(1, Math.min(8, Number(lane) || 1));
+      const names = systemConfig.laneColorMode !== 'individual'
+        ? getLaneColorNameSet(systemConfig.globalLaneColorNames)
+        : getLaneColorNameSet(event && event.laneColorNames);
+      return names[laneNo];
+    }
     function getEventLaneColor(event, lane) {
       const laneNo = Math.max(1, Math.min(8, Number(lane) || 1));
       if (systemConfig.laneColorMode !== 'individual') {
@@ -2622,10 +2636,16 @@
       const colors = getLaneColorSet(event && event.laneColors);
       return colors[laneNo];
     }
-    function renderLaneColorPickers(containerId, colors) {
+    function renderLaneColorPickers(containerId, colors, names) {
       const el = document.getElementById(containerId); if (!el) return;
       const palette = getLaneColorSet(colors);
-      el.innerHTML = Array.from({length:8}, (_,i) => { const n=i+1; return `<label class="text-center text-xs font-bold text-slate-700">第${n}道<input type="color" data-lane-color="${n}" value="${palette[n]}" class="mt-1 w-full h-9 border border-slate-300 rounded-lg p-1 bg-white"></label>`; }).join('');
+      const labels = getLaneColorNameSet(names);
+      el.innerHTML = Array.from({length:8}, (_,i) => { const n=i+1; return `<div class="text-center text-xs font-bold text-slate-700"><label>第${n}道<input type="color" data-lane-color="${n}" value="${palette[n]}" class="mt-1 w-full h-9 border border-slate-300 rounded-lg p-1 bg-white"></label><input type="text" data-lane-color-name="${n}" value="${String(labels[n]).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;')}" maxlength="8" aria-label="第${n}道顏色名稱" placeholder="顏色名稱" class="mt-1 w-full min-w-0 border border-slate-300 rounded-md px-1 py-1 text-center font-bold"></div>`; }).join('');
+    }
+    function readLaneColorNamePickers(containerId) {
+      const el = document.getElementById(containerId); const out = {};
+      if (el) el.querySelectorAll('[data-lane-color-name]').forEach(input => out[input.dataset.laneColorName] = input.value.trim());
+      return getLaneColorNameSet(out);
     }
     function readLaneColorPickers(containerId) {
       const el = document.getElementById(containerId); const out = {};
@@ -2698,7 +2718,7 @@
       document.getElementById('eventEditAwardQuota').value = '6';
       document.getElementById('eventEditUnit').value = '秒';
       document.getElementById('eventEditSortRule').value = 'lower';
-      renderLaneColorPickers('eventLaneColorsGrid', systemConfig.globalLaneColors);
+      renderLaneColorPickers('eventLaneColorsGrid', systemConfig.globalLaneColors, systemConfig.globalLaneColorNames);
       document.getElementById('eventEditRequireClass').checked = false;
       openModal('eventEditModal');
     }
@@ -2718,7 +2738,7 @@
       document.getElementById('eventEditAwardQuota').value = getEventAwardQuota(e);
       document.getElementById('eventEditUnit').value = e.unit || '秒';
       document.getElementById('eventEditSortRule').value = e.sortLowerBetter ? 'lower' : 'higher';
-      renderLaneColorPickers('eventLaneColorsGrid', e.laneColors || systemConfig.globalLaneColors);
+      renderLaneColorPickers('eventLaneColorsGrid', e.laneColors || systemConfig.globalLaneColors, e.laneColorNames || systemConfig.globalLaneColorNames);
       document.getElementById('eventEditRequireClass').checked = !!e.requireClassRegistration;
       openModal('eventEditModal');
     }
@@ -2757,6 +2777,7 @@
       const unit = document.getElementById('eventEditUnit').value.trim() || '秒';
       const sortLowerBetter = (document.getElementById('eventEditSortRule').value === 'lower');
       const laneColors = readLaneColorPickers('eventLaneColorsGrid');
+      const laneColorNames = readLaneColorNamePickers('eventLaneColorsGrid');
       const requireClassRegistration = document.getElementById('eventEditRequireClass').checked;
 
       if (id) {
@@ -2766,12 +2787,12 @@
           item.gender = gender; item.regularQuota = regularQuota;
           item.reserveQuota = reserveQuota; item.awardQuota = awardQuota; item.unit = unit;
           item.sortLowerBetter = sortLowerBetter;
-          item.laneColors = laneColors; item.laneColor = laneColors[1]; item.requireClassRegistration = requireClassRegistration;
+          item.laneColors = laneColors; item.laneColorNames = laneColorNames; item.laneColor = laneColors[1]; item.requireClassRegistration = requireClassRegistration;
         }
         showToast(`已更新賽事：${name}`);
       } else {
         const newId = 'E' + (eventsList.length > 0 ? (Math.max(...eventsList.map(e => parseInt(e.id.replace(/\D/g, '')) || 0)) + 1) : 701);
-        eventsList.push({ id: newId, grade, name, category, gender, regularQuota, reserveQuota, sortLowerBetter, unit, awardQuota, laneColors, laneColor: laneColors[1], requireClassRegistration });
+        eventsList.push({ id: newId, grade, name, category, gender, regularQuota, reserveQuota, sortLowerBetter, unit, awardQuota, laneColors, laneColorNames, laneColor: laneColors[1], requireClassRegistration });
         showToast(`已建立新賽事：${name}`);
       }
 
@@ -5039,11 +5060,14 @@
             `;
           }
 
+          const laneColor = getEventLaneColor(ev, r.lane || 1);
+          const laneColorName = getEventLaneColorName(ev, r.lane || 1);
           return `
             <tr>
               <td class="border border-slate-900 p-2 text-center font-mono font-bold">${i + 1}</td>
               <td class="border border-slate-900 p-2 text-center font-bold whitespace-nowrap">第 ${r.group || 1} 組</td>
               <td class="border border-slate-900 p-2 text-center font-black whitespace-nowrap">第 ${r.lane || 1} 道</td>
+              <td class="border border-slate-900 p-1 text-center whitespace-nowrap"><span style="display:inline-block;width:22px;height:13px;border:1px solid #334155;border-radius:2px;background:${laneColor};vertical-align:middle;margin-right:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact"></span><span style="display:inline-block;vertical-align:middle;font-size:10px;font-weight:900;color:#111">${laneColorName}</span></td>
               <td class="border border-slate-900 p-2 text-center font-bold">${r.classId} 班</td>
               <td class="border border-slate-900 p-2 font-black">
                 ${r.name} ${r.isReserve ? '<span class="text-amber-800 font-bold">(候)</span>' : ''}
@@ -5088,6 +5112,7 @@
                     <th class="border border-slate-900 p-2 text-center w-10">序</th>
                     <th class="border border-slate-900 p-2 text-center w-16">組別</th>
                     <th class="border border-slate-900 p-2 text-center w-16">道次/序位</th>
+                    <th class="border border-slate-900 p-1 text-center w-16">顏色</th>
                     <th class="border border-slate-900 p-2 text-center w-16">班級</th>
                     <th class="border border-slate-900 p-2 text-left">選手姓名 / 棒次</th>
                     <th class="border border-slate-900 p-2 text-center w-20">檢錄核驗</th>
@@ -5095,7 +5120,7 @@
                     <th class="border border-slate-900 p-2 text-center w-20">備註</th>
                   </tr>
                 </thead>
-                <tbody>${rows || '<tr><td colspan="8" class="text-center py-6 text-slate-400">目前尚無選手</td></tr>'}</tbody>
+                <tbody>${rows || '<tr><td colspan="9" class="text-center py-6 text-slate-400">目前尚無選手</td></tr>'}</tbody>
               </table>
             </div>
 
@@ -5530,13 +5555,14 @@
         systemConfig.laneColorMode = systemConfig.laneColorMode || 'unified';
         systemConfig.defaultLaneColor = systemConfig.defaultLaneColor || '#2563eb';
         systemConfig.globalLaneColors = getLaneColorSet(systemConfig.globalLaneColors);
+        systemConfig.globalLaneColorNames = getLaneColorNameSet(systemConfig.globalLaneColorNames);
         systemConfig.googleSheetUrl = keepUrl;
         if (Number.isInteger(Number(systemConfig.maxIndividualEvents))) {
           try { localStorage.setItem(INDIVIDUAL_EVENT_LIMIT_STORAGE_KEY, String(systemConfig.maxIndividualEvents)); } catch (_) {}
         }
       }
       if (Array.isArray(data.categoriesList)) categoriesList = data.categoriesList;
-      if (Array.isArray(data.eventsList)) eventsList = data.eventsList.map(e => ({ ...e, awardQuota: normalizeAwardQuota(e.awardQuota), laneColor: e.laneColor || '#2563eb', laneColors: e.laneColors ? getLaneColorSet(e.laneColors) : getLaneColorSet({1:e.laneColor || '#2563eb',2:e.laneColor || '#2563eb',3:e.laneColor || '#2563eb',4:e.laneColor || '#2563eb',5:e.laneColor || '#2563eb',6:e.laneColor || '#2563eb',7:e.laneColor || '#2563eb',8:e.laneColor || '#2563eb'}), requireClassRegistration: !!e.requireClassRegistration }));
+      if (Array.isArray(data.eventsList)) eventsList = data.eventsList.map(e => ({ ...e, awardQuota: normalizeAwardQuota(e.awardQuota), laneColor: e.laneColor || '#2563eb', laneColors: e.laneColors ? getLaneColorSet(e.laneColors) : getLaneColorSet({1:e.laneColor || '#2563eb',2:e.laneColor || '#2563eb',3:e.laneColor || '#2563eb',4:e.laneColor || '#2563eb',5:e.laneColor || '#2563eb',6:e.laneColor || '#2563eb',7:e.laneColor || '#2563eb',8:e.laneColor || '#2563eb'}), laneColorNames: getLaneColorNameSet(e.laneColorNames), requireClassRegistration: !!e.requireClassRegistration }));
       if (Array.isArray(data.studentsList)) studentsList = data.studentsList;
       if (data.classAccounts && typeof data.classAccounts === 'object') classAccounts = data.classAccounts;
       if (data.classTypesMap && typeof data.classTypesMap === 'object') classTypesMap = data.classTypesMap;
@@ -5872,6 +5898,7 @@
       systemConfig.regEndDate = endValue;
       systemConfig.laneColorMode = document.getElementById('settingLaneColorMode')?.value || systemConfig.laneColorMode || 'unified';
       systemConfig.globalLaneColors = readLaneColorPickers('globalLaneColorsGrid');
+      systemConfig.globalLaneColorNames = readLaneColorNamePickers('globalLaneColorsGrid');
       systemConfig.defaultLaneColor = systemConfig.globalLaneColors[1] || systemConfig.defaultLaneColor || '#2563eb';
       if (sMaxIndividual) {
         const rawLimit = Number(sMaxIndividual.value);
@@ -5918,7 +5945,7 @@
       if (sEnd) sEnd.value = normalizeDateTimeLocal(systemConfig.regEndDate);
       const colorMode = document.getElementById('settingLaneColorMode');
       const defaultColor = document.getElementById('settingDefaultLaneColor');
-      renderLaneColorPickers('globalLaneColorsGrid', systemConfig.globalLaneColors);
+      renderLaneColorPickers('globalLaneColorsGrid', systemConfig.globalLaneColors, systemConfig.globalLaneColorNames);
       if (colorMode) colorMode.value = systemConfig.laneColorMode || 'unified';
       if (defaultColor) defaultColor.value = systemConfig.defaultLaneColor || '#2563eb';
       if (sMaxIndividual) sMaxIndividual.value = getMaxIndividualEvents();
