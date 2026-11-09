@@ -618,6 +618,7 @@
                   <th class="p-3.5">參賽年級</th>
                   <th class="p-3.5">項目名稱</th>
                   <th class="p-3.5">賽事種類</th>
+                  <th class="p-3.5">編排方式</th>
                   <th class="p-3.5">性別組別</th>
                   <th class="p-3.5">名額規範</th>
                   <th class="p-3.5">獲獎頒獎名額</th>
@@ -1383,11 +1384,11 @@
           <select id="registrationEditStudent" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold"></select>
         </div>
         <div>
-          <label class="block font-bold text-slate-700 mb-1">組別：</label>
+          <label id="registrationEditGroupLabel" class="block font-bold text-slate-700 mb-1">組別：</label>
           <input type="number" id="registrationEditGroup" min="1" value="1" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono font-bold">
         </div>
         <div>
-          <label class="block font-bold text-slate-700 mb-1">道次 / 序位：</label>
+          <label id="registrationEditLaneLabel" class="block font-bold text-slate-700 mb-1">道次 / 序位：</label>
           <input type="number" id="registrationEditLane" min="1" value="1" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono font-bold">
         </div>
         <div>
@@ -1416,8 +1417,8 @@
 
   <!-- Modal 3: 新增 / 編輯比賽項目彈窗 -->
   <div id="eventEditModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-lg shadow-2xl border border-slate-200 space-y-4">
-      <div class="flex items-center justify-between border-b pb-3">
+    <div class="bg-white rounded-3xl p-4 sm:p-5 w-full max-w-lg max-h-[92vh] flex flex-col shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between border-b pb-3 mb-3 shrink-0">
         <h3 id="eventEditModalTitle" class="font-extrabold text-slate-900 text-lg flex items-center">
           <i class="fa-solid fa-trophy text-amber-500 mr-2"></i>新增比賽項目
         </h3>
@@ -1426,7 +1427,7 @@
 
       <input type="hidden" id="editingEventId" value="">
 
-      <div class="space-y-3.5 text-sm">
+      <div class="space-y-3 text-sm overflow-y-auto min-h-0 flex-1 pr-1">
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-bold text-slate-700 mb-1">參賽年級：</label>
@@ -1447,7 +1448,7 @@
 
         <div>
           <label class="block font-bold text-slate-700 mb-1">項目名稱：</label>
-          <input type="text" id="eventEditName" placeholder="例如：男 100公尺、大隊接力" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-slate-800">
+          <input type="text" id="eventEditName" oninput="suggestEventLaneMode()" placeholder="例如：男 100公尺、大隊接力" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-slate-800">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -1495,12 +1496,23 @@
             <option value="higher">高數值優勝（如 跳遠 5.2公尺 優於 4.8公尺）</option>
           </select>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="p-3 bg-sky-50 border border-sky-200 rounded-xl sm:col-span-2">
-            <label class="block font-bold text-sky-950 mb-2">本賽事各跑道服裝顏色</label>
-            <div id="eventLaneColorsGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
-            <p class="text-[11px] text-sky-800 mt-2">此設定僅在系統選擇「各賽事分別設定跑道顏色」時生效；每一道可設定色條及顏色名稱（如紅、黃、綠）；黑白列印時仍可辨識。</p>
-          </div>
+        <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" id="eventEditUseLanes" class="w-4 h-4 mt-0.5 text-indigo-600 rounded">
+            <span><b class="text-indigo-950">本賽事需要分道次</b><small class="block text-xs text-indigo-800 mt-1">勾選：每組最多依 1～8 道編排；取消：所有參賽者自動放在同一組，僅依序編列排序號（適用鉛球、跳遠、800 公尺、1500 公尺等項目）。</small></span>
+          </label>
+        </div>
+        <div class="space-y-2">
+          <details class="rounded-xl border border-sky-200 bg-sky-50 overflow-hidden">
+            <summary class="cursor-pointer select-none px-3 py-2.5 font-bold text-sky-950 flex items-center justify-between">
+              <span><i class="fa-solid fa-palette mr-2"></i>跑道服裝顏色編輯（選用設定）</span>
+              <span class="text-xs font-medium text-sky-700">點此展開／收合</span>
+            </summary>
+            <div class="px-3 pb-3 border-t border-sky-200 pt-3">
+              <div id="eventLaneColorsGrid" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
+              <p class="text-[11px] text-sky-800 mt-2">此設定僅在系統選擇「各賽事分別設定跑道顏色」時生效；每一道可設定色條及顏色名稱（如紅、黃、綠）；黑白列印時仍可辨識。</p>
+            </div>
+          </details>
           <label class="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer">
             <input type="checkbox" id="eventEditRequireClass" class="w-4 h-4 mt-0.5">
             <span><b class="text-amber-950">強制班級報名</b><small class="block text-xs text-amber-800 mt-1">勾選後，未報名班級會在賽事列表顯示警示，並可篩選缺漏項目。</small></span>
@@ -1508,7 +1520,7 @@
         </div>
       </div>
 
-      <div class="flex justify-end space-x-2 pt-3 border-t">
+      <div class="flex justify-end space-x-2 pt-3 mt-3 border-t shrink-0 bg-white">
         <button onclick="closeModal('eventEditModal')" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm">取消</button>
         <button onclick="saveEventEditModal()" class="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-black text-sm shadow">儲存賽事</button>
       </div>
@@ -2030,13 +2042,13 @@
     <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200 space-y-4">
       <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
         <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-list-ol text-lg"></i></div>
-        <div><h3 class="font-black text-slate-900">選擇分組與道次編排方式</h3><p class="text-xs text-slate-500 mt-1">每項賽事分開編排，每組依序安排 1～8 道</p></div>
+        <div><h3 class="font-black text-slate-900">選擇分組與道次編排方式</h3><p class="text-xs text-slate-500 mt-1">依各賽事設定自動編排：分道項目每組 1～8 道；免分道項目全部同組並編排序號</p></div>
       </div>
       <button onclick="applyGroupAllocation('random')" class="w-full text-left p-4 rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 hover:bg-indigo-50 transition">
-        <div class="font-black text-indigo-700"><i class="fa-solid fa-shuffle mr-2"></i>隨機抽籤</div><p class="text-sm text-slate-500 mt-1">選手順序隨機打散，再依序分配組別與跑道。</p>
+        <div class="font-black text-indigo-700"><i class="fa-solid fa-shuffle mr-2"></i>隨機抽籤</div><p class="text-sm text-slate-500 mt-1">選手順序隨機打散；分道項目分組排道，免分道項目全部同組並編排序號。</p>
       </button>
       <button onclick="applyGroupAllocation('class')" class="w-full text-left p-4 rounded-2xl border-2 border-emerald-100 hover:border-emerald-500 hover:bg-emerald-50 transition">
-        <div class="font-black text-emerald-700"><i class="fa-solid fa-arrow-down-1-9 mr-2"></i>依班級順排（小到大）</div><p class="text-sm text-slate-500 mt-1">例如 701、702、703……；同班再依座號排序。</p>
+        <div class="font-black text-emerald-700"><i class="fa-solid fa-arrow-down-1-9 mr-2"></i>依班級順排（小到大）</div><p class="text-sm text-slate-500 mt-1">例如 701、702、703……；同班再依座號排序。分道項目依序排道，免分道項目則同組排序。</p>
       </button>
       <div class="flex justify-end pt-1"><button onclick="closeModal('groupAllocationModeModal')" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm">取消</button></div>
     </div>
@@ -2143,11 +2155,11 @@
     let eventsList = [
       { id: 'E701', grade: '7', name: '男 100公尺', category: '徑賽', gender: '男', regularQuota: 2, reserveQuota: 0, sortLowerBetter: true, unit: '秒', awardQuota: 6 },
       { id: 'E702', grade: '7', name: '女 100公尺', category: '徑賽', gender: '女', regularQuota: 2, reserveQuota: 0, sortLowerBetter: true, unit: '秒', awardQuota: 6 },
-      { id: 'E703', grade: '7', name: '跳遠', category: '田賽', gender: '不限', regularQuota: 2, reserveQuota: 0, sortLowerBetter: false, unit: '公尺', awardQuota: 6 },
+      { id: 'E703', grade: '7', name: '跳遠', category: '田賽', useLanes: false, gender: '不限', regularQuota: 2, reserveQuota: 0, sortLowerBetter: false, unit: '公尺', awardQuota: 6 },
       { id: 'E704', grade: '7', name: '大隊接力', category: '接力賽', gender: '男女混合', regularQuota: 16, reserveQuota: 2, sortLowerBetter: true, unit: '秒', awardQuota: 6 },
       { id: 'E801', grade: '8', name: '男 200公尺', category: '徑賽', gender: '男', regularQuota: 2, reserveQuota: 0, sortLowerBetter: true, unit: '秒', awardQuota: 6 },
       { id: 'E802', grade: '8', name: '女 200公尺', category: '徑賽', gender: '女', regularQuota: 2, reserveQuota: 0, sortLowerBetter: true, unit: '秒', awardQuota: 6 },
-      { id: 'E803', grade: '8', name: '鉛球', category: '田賽', gender: '不限', regularQuota: 2, reserveQuota: 0, sortLowerBetter: false, unit: '公尺', awardQuota: 6 },
+      { id: 'E803', grade: '8', name: '鉛球', category: '田賽', useLanes: false, gender: '不限', regularQuota: 2, reserveQuota: 0, sortLowerBetter: false, unit: '公尺', awardQuota: 6 },
       { id: 'E901', grade: '9', name: '男 400公尺', category: '徑賽', gender: '男', regularQuota: 2, reserveQuota: 0, sortLowerBetter: true, unit: '秒', awardQuota: 6 }
     ];
 
@@ -2689,6 +2701,36 @@
       return eligible.filter(cls => !registered.has(cls)).sort((a,b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
     }
 
+    // 賽事是否需要實體道次；舊資料未設定時依項目名稱自動判斷，之後可在賽事編輯中自行覆寫。
+    function eventUsesLanes(event) {
+      if (!event) return true;
+      if (typeof event.useLanes === 'boolean') return event.useLanes;
+      const name = String(event.name || '').replace(/\s+/g, '').toLowerCase();
+      if (/鉛球|跳遠|跳高|三級跳遠|800公尺|800米|1500公尺|1500米/.test(name)) return false;
+      return event.category !== '田賽';
+    }
+
+    function suggestEventLaneMode() {
+      const name = String(document.getElementById('eventEditName')?.value || '').replace(/\s+/g, '').toLowerCase();
+      const category = document.getElementById('eventEditCategory')?.value || '';
+      const checkbox = document.getElementById('eventEditUseLanes');
+      if (!checkbox) return;
+      if (/鉛球|跳遠|跳高|三級跳遠|800公尺|800米|1500公尺|1500米/.test(name) || category === '田賽') checkbox.checked = false;
+      else if (name) checkbox.checked = true;
+    }
+
+    function updateRegistrationLaneFields() {
+      const eventId = document.getElementById('registrationEditEvent')?.value;
+      const ev = eventsList.find(e => e.id === eventId);
+      const useLanes = eventUsesLanes(ev);
+      const groupInput = document.getElementById('registrationEditGroup');
+      const laneLabel = document.getElementById('registrationEditLaneLabel');
+      const groupLabel = document.getElementById('registrationEditGroupLabel');
+      if (groupInput) { groupInput.disabled = !useLanes; if (!useLanes) groupInput.value = 1; }
+      if (laneLabel) laneLabel.textContent = useLanes ? '道次 / 序位：' : '排序號：';
+      if (groupLabel) groupLabel.textContent = useLanes ? '組別：' : '組別（免分道固定第 1 組）：';
+    }
+
     function renderAdminEventsTable() {
       const tbody = document.getElementById('adminEventsTableBody');
       if (!tbody) return;
@@ -2719,6 +2761,7 @@
             <td class="p-3.5 font-bold">${e.grade === 'all_school' ? '全校' : e.grade + ' 年級'}</td>
             <td class="p-3.5 font-black text-slate-900">${e.name}</td>
             <td class="p-3.5"><span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">${e.category}</span></td>
+            <td class="p-3.5"><span class="px-2.5 py-1 rounded-lg text-xs font-black ${eventUsesLanes(e) ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}">${eventUsesLanes(e) ? '分道次' : '免分道・排序'}</span></td>
             <td class="p-3.5">${e.gender}</td>
             <td class="p-3.5 font-mono">正選 ${e.regularQuota} 人 ${e.reserveQuota ? `/ 候補 ${e.reserveQuota} 人` : ''}</td>
             <td class="p-3.5"><span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">取前 ${getEventAwardQuota(e)} 名</span></td>
@@ -2746,6 +2789,7 @@
       document.getElementById('eventEditAwardQuota').value = '6';
       document.getElementById('eventEditUnit').value = '秒';
       document.getElementById('eventEditSortRule').value = 'lower';
+      document.getElementById('eventEditUseLanes').checked = true;
       renderLaneColorPickers('eventLaneColorsGrid', systemConfig.globalLaneColors, systemConfig.globalLaneColorNames);
       document.getElementById('eventEditRequireClass').checked = false;
       openModal('eventEditModal');
@@ -2766,12 +2810,17 @@
       document.getElementById('eventEditAwardQuota').value = getEventAwardQuota(e);
       document.getElementById('eventEditUnit').value = e.unit || '秒';
       document.getElementById('eventEditSortRule').value = e.sortLowerBetter ? 'lower' : 'higher';
+      document.getElementById('eventEditUseLanes').checked = eventUsesLanes(e);
       renderLaneColorPickers('eventLaneColorsGrid', e.laneColors || systemConfig.globalLaneColors, e.laneColorNames || systemConfig.globalLaneColorNames);
       document.getElementById('eventEditRequireClass').checked = !!e.requireClassRegistration;
       openModal('eventEditModal');
     }
 
     function onEventModalCategoryChange(cat) {
+      const laneSetting = document.getElementById('eventEditUseLanes');
+      if (laneSetting && cat === '田賽') laneSetting.checked = false;
+      if (laneSetting && cat === '徑賽' && !/800\s*公尺|1500\s*公尺/.test(document.getElementById('eventEditName')?.value || '')) laneSetting.checked = true;
+      if (laneSetting && /800\s*公尺|1500\s*公尺/.test(document.getElementById('eventEditName')?.value || '')) laneSetting.checked = false;
       if (cat === '接力賽') {
         document.getElementById('eventEditRegularQuota').value = 16;
         document.getElementById('eventEditReserveQuota').value = 2;
@@ -2807,6 +2856,7 @@
       const laneColors = readLaneColorPickers('eventLaneColorsGrid');
       const laneColorNames = readLaneColorNamePickers('eventLaneColorsGrid');
       const requireClassRegistration = document.getElementById('eventEditRequireClass').checked;
+      const useLanes = document.getElementById('eventEditUseLanes').checked;
 
       if (id) {
         const item = eventsList.find(x => x.id === id);
@@ -2815,12 +2865,13 @@
           item.gender = gender; item.regularQuota = regularQuota;
           item.reserveQuota = reserveQuota; item.awardQuota = awardQuota; item.unit = unit;
           item.sortLowerBetter = sortLowerBetter;
+          item.useLanes = useLanes;
           item.laneColors = laneColors; item.laneColorNames = laneColorNames; item.laneColor = laneColors[1]; item.requireClassRegistration = requireClassRegistration;
         }
         showToast(`已更新賽事：${name}`);
       } else {
         const newId = 'E' + (eventsList.length > 0 ? (Math.max(...eventsList.map(e => parseInt(e.id.replace(/\D/g, '')) || 0)) + 1) : 701);
-        eventsList.push({ id: newId, grade, name, category, gender, regularQuota, reserveQuota, sortLowerBetter, unit, awardQuota, laneColors, laneColorNames, laneColor: laneColors[1], requireClassRegistration });
+        eventsList.push({ id: newId, grade, name, category, gender, regularQuota, reserveQuota, sortLowerBetter, useLanes, unit, awardQuota, laneColors, laneColorNames, laneColor: laneColors[1], requireClassRegistration });
         showToast(`已建立新賽事：${name}`);
       }
 
@@ -3354,6 +3405,7 @@
         const ev = eventsList.find(x => x.id === r.eventId) || { name: '未知項目' };
         const isSports = (classTypesMap[r.classId] === 'sports');
         const laneColor = getEventLaneColor(ev, r.lane);
+        const laneText = eventUsesLanes(ev) ? `第 ${r.lane || 1} 道` : `排序號 ${r.lane || 1}`;
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3.5 font-bold">${r.grade} 年級</td>
@@ -3369,7 +3421,7 @@
               ${r.leg ? `<span class="ml-1 text-xs text-indigo-600">[第${r.leg}棒]</span>` : ''}
             </td>
             <td class="p-3.5 font-mono font-bold">第 ${r.group || 1} 組</td>
-            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap"><span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>第 ${r.lane || 1} 道 / 序位</td>
+            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap">${eventUsesLanes(ev) ? `<span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>` : ''}${laneText}</td>
             <td class="p-3.5 text-right whitespace-nowrap">
               <div class="flex items-center justify-end gap-2">
                 <button onclick="openRegistrationEditModal('${r.id}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs">
@@ -3421,6 +3473,7 @@
 
       onRegistrationClassChange(editing ? editing.studentId : '');
       if (editing) eventSel.value = editing.eventId;
+      updateRegistrationLaneFields();
       openModal('registrationEditModal');
     }
 
@@ -3433,6 +3486,7 @@
         const firstClass = Object.keys(classAccounts).find(c => c.startsWith(ev.grade));
         if (firstClass) classSel.value = firstClass;
       }
+      updateRegistrationLaneFields();
       onRegistrationClassChange();
     }
 
@@ -3512,6 +3566,7 @@
         return;
       }
 
+      const effectiveGroup = eventUsesLanes(ev) ? group : 1;
       const payload = {
         id: regId || ('R_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
         eventId,
@@ -3519,7 +3574,7 @@
         classId,
         studentId,
         name: student.name,
-        group,
+        group: effectiveGroup,
         lane,
         leg: ev.category === '接力賽' ? leg : null,
         isReserve
@@ -3594,10 +3649,19 @@
         } else {
           list.sort(() => Math.random() - 0.5);
         }
-        list.forEach((reg, idx) => {
-          reg.group = Math.floor(idx / 8) + 1;
-          reg.lane = (idx % 8) + 1;
-        });
+        const event = eventsList.find(e => String(e.id) === String(eventId));
+        if (eventUsesLanes(event)) {
+          list.forEach((reg, idx) => {
+            reg.group = Math.floor(idx / 8) + 1;
+            reg.lane = (idx % 8) + 1;
+          });
+        } else {
+          // 免分道項目不拆組：全部同一組，依排序結果給 1、2、3… 號。
+          list.forEach((reg, idx) => {
+            reg.group = 1;
+            reg.lane = idx + 1;
+          });
+        }
       });
 
       saveLocalEventSnapshot();
@@ -3654,11 +3718,12 @@
         const curRank = existing ? existing.rankLabel : '－';
         const isSports = (classTypesMap[cand.classId] === 'sports');
         const laneColor = getEventLaneColor(targetEvent, cand.lane);
+        const laneText = eventUsesLanes(targetEvent) ? `第 ${cand.lane || 1} 道` : `排序號 ${cand.lane || 1}`;
 
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3.5 font-mono font-bold">第 ${cand.group || 1} 組</td>
-            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap"><span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>第 ${cand.lane || 1} 道</td>
+            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap">${eventUsesLanes(targetEvent) ? `<span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>` : ''}${laneText}</td>
             <td class="p-3.5 font-bold">${cand.classId} 班</td>
             <td class="p-3.5 font-black text-slate-900">${cand.name}</td>
             <td class="p-3.5">
@@ -5161,17 +5226,22 @@
         const pages = [];
 
         selectedEvents.forEach(ev => {
-          const eligible = registrationSource.filter(r => String(r.eventId) === String(ev.id) && !r.isReserve && (group === 'all' || (Number(r.group) || 1) === Number(group)));
-          const groupNumbers = [...new Set(eligible.map(r => Number(r.group) || 1))].sort((a,b) => a-b);
+          const eligible = registrationSource.filter(r => String(r.eventId) === String(ev.id) && !r.isReserve && (!eventUsesLanes(ev) || group === 'all' || (Number(r.group) || 1) === Number(group)));
+          const groupNumbers = eventUsesLanes(ev) ? [...new Set(eligible.map(r => Number(r.group) || 1))].sort((a,b) => a-b) : (eligible.length ? [1] : []);
           groupNumbers.forEach(gr => {
-            const list = eligible.filter(r => (Number(r.group) || 1) === gr).sort((a,b) => (Number(a.lane) || 99) - (Number(b.lane) || 99));
+            const list = (eventUsesLanes(ev) ? eligible.filter(r => (Number(r.group) || 1) === gr) : eligible.slice()).sort((a,b) => (Number(a.lane) || 99) - (Number(b.lane) || 99));
+            // 依該組人數自動調整列高，避免免分道田賽（例如跳遠、鉛球）
+            // 全員集中同一組時，表格超出 A4 橫式頁面而被裁切。
+            const resultRowMm = list.length <= 10 ? 13 : list.length <= 14 ? 10 : list.length <= 18 ? 8 : list.length <= 22 ? 6.8 : 5.8;
+            const resultFontPt = list.length > 18 ? 9 : list.length > 14 ? 10 : 11;
             const rows = list.map((r,i) => {
               const lane = Number(r.lane) || i + 1;
-              const colorName = getEventLaneColorName(ev, lane);
-              const color = getEventLaneColor(ev, lane);
-              return `<tr><td>${lane}</td><td><span class="color-chip" style="background:${escapeHtmlForPrint(String(color || '#ffffff'))}"></span><span class="color-name">${escapeHtmlForPrint(String(colorName || ''))}</span></td><td>${escapeHtmlForPrint(String(r.classId || ''))}</td><td>${escapeHtmlForPrint(String(r.name || ''))}</td><td class="rank-cell"></td><td class="time-cell"></td><td></td></tr>`;
+              const useLanes = eventUsesLanes(ev);
+              const colorName = useLanes ? getEventLaneColorName(ev, lane) : '';
+              const color = useLanes ? getEventLaneColor(ev, lane) : '#ffffff';
+              return `<tr><td>${lane}</td><td>${useLanes ? `<span class="color-chip" style="background:${escapeHtmlForPrint(String(color || '#ffffff'))}"></span><span class="color-name">${escapeHtmlForPrint(String(colorName || ''))}</span>` : '—'}</td><td>${escapeHtmlForPrint(String(r.classId || ''))}</td><td>${escapeHtmlForPrint(String(r.name || ''))}</td><td class="rank-cell"></td><td class="time-cell"></td><td></td></tr>`;
             }).join('');
-            pages.push(`<section class="paper-result-page"><header><h1>${escapeHtmlForPrint(String(systemConfig.schoolName || '新北市立佳林國民中學'))}</h1><h2>${escapeHtmlForPrint(String(systemConfig.academicYear || ''))}　${escapeHtmlForPrint(String(ev.name || ''))}　紙本成績登記表</h2><div class="meta">年級：${ev.grade === 'all_school' ? '全校' : escapeHtmlForPrint(String(ev.grade || '')) + '年級'}　｜　組別：第 ${gr} 組　｜　參賽人數：${list.length} 人　｜　日期：____________　場次：____________</div></header><table><thead><tr><th>道次</th><th>服裝色</th><th>班級</th><th>選手姓名</th><th class="rank-head">名次（優先登記）</th><th>碼表成績（稍後補登）</th><th>備註</th></tr></thead><tbody>${rows || '<tr><td colspan="7">本組尚無選手</td></tr>'}</tbody></table><footer><span>記錄員：________________</span><span>裁判長：________________</span></footer></section>`);
+            pages.push(`<section class="paper-result-page" style="--result-row-height:${resultRowMm}mm;--result-font-size:${resultFontPt}pt"><header><h1>${escapeHtmlForPrint(String(systemConfig.schoolName || '新北市立佳林國民中學'))}</h1><h2>${escapeHtmlForPrint(String(systemConfig.academicYear || ''))}　${escapeHtmlForPrint(String(ev.name || ''))}　紙本成績登記表</h2><div class="meta">年級：${ev.grade === 'all_school' ? '全校' : escapeHtmlForPrint(String(ev.grade || '')) + '年級'}　｜　組別：第 ${gr} 組　｜　${eventUsesLanes(ev) ? '道次編排' : '免分道・依排序號排列'}　｜　參賽人數：${list.length} 人　｜　日期：____________　場次：____________</div></header><table><thead><tr><th>${eventUsesLanes(ev) ? '道次' : '排序號'}</th><th>${eventUsesLanes(ev) ? '服裝色' : '—'}</th><th>班級</th><th>選手姓名</th><th class="rank-head">名次（優先登記）</th><th>碼表成績（稍後補登）</th><th>備註</th></tr></thead><tbody>${rows || '<tr><td colspan="7">本組尚無選手</td></tr>'}</tbody></table><footer><span>記錄員：________________</span><span>裁判長：________________</span></footer></section>`);
           });
         });
 
@@ -5190,20 +5260,22 @@
           #printArea.paper-result-landscape { width:297mm; margin:0; padding:0; background:#fff; color:#111; font-family:Arial,'Noto Sans TC',sans-serif; }
           #printArea.paper-result-landscape .paper-result-page { page:paperResultLandscape; width:297mm; height:210mm; padding:9mm; overflow:hidden; page-break-after:always; break-after:page; }
           #printArea.paper-result-landscape .paper-result-page:last-child { page-break-after:auto; break-after:auto; }
-          #printArea.paper-result-landscape header { text-align:center; border-bottom:2px solid #111; padding-bottom:4mm; margin-bottom:5mm; }
-          #printArea.paper-result-landscape h1 { font-size:19pt; font-weight:900; margin:0; }
-          #printArea.paper-result-landscape h2 { font-size:15pt; font-weight:800; margin:2mm 0; }
-          #printArea.paper-result-landscape .meta { text-align:left; font-size:10pt; font-weight:700; margin-top:3mm; }
+          #printArea.paper-result-landscape header { text-align:center; border-bottom:2px solid #111; padding-bottom:2.5mm; margin-bottom:3mm; }
+          #printArea.paper-result-landscape h1 { font-size:18pt; font-weight:900; margin:0; }
+          #printArea.paper-result-landscape h2 { font-size:14pt; font-weight:800; margin:1.5mm 0; }
+          #printArea.paper-result-landscape .meta { text-align:left; font-size:9pt; font-weight:700; margin-top:2mm; }
           #printArea.paper-result-landscape table { width:100%; border-collapse:collapse; table-layout:fixed; }
-          #printArea.paper-result-landscape th, #printArea.paper-result-landscape td { border:1.3px solid #111; text-align:center; padding:3mm 2mm; font-size:11pt; height:17mm; }
-          #printArea.paper-result-landscape th { font-weight:900; background:#eee !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-          #printArea.paper-result-landscape th:nth-child(2), #printArea.paper-result-landscape td:nth-child(2) { width:15%; }
-          #printArea.paper-result-landscape th:nth-child(4), #printArea.paper-result-landscape td:nth-child(4) { width:22%; }
-          #printArea.paper-result-landscape .rank-head, #printArea.paper-result-landscape .rank-cell { width:19%; font-size:16pt; font-weight:900; }
-          #printArea.paper-result-landscape .time-cell { width:19%; font-size:13pt; }
+          #printArea.paper-result-landscape th, #printArea.paper-result-landscape td { border:1.1px solid #111; text-align:center; vertical-align:middle; padding:0.7mm 1mm; font-size:var(--result-font-size, 11pt); line-height:1.12; height:var(--result-row-height, 13mm); white-space:nowrap; overflow:hidden; }
+          #printArea.paper-result-landscape th { height:10mm; padding:1mm; font-weight:900; background:#eee !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; white-space:normal; }
+          #printArea.paper-result-landscape th:nth-child(2), #printArea.paper-result-landscape td:nth-child(2) { width:12%; }
+          #printArea.paper-result-landscape th:nth-child(4), #printArea.paper-result-landscape td:nth-child(4) { width:20%; }
+          #printArea.paper-result-landscape .rank-head, #printArea.paper-result-landscape .rank-cell { width:17%; font-size:var(--result-rank-font, 13pt); font-weight:900; }
+          #printArea.paper-result-landscape .time-cell { width:18%; font-size:var(--result-font-size, 11pt); }
           #printArea.paper-result-landscape .color-chip { display:inline-block; width:9mm; height:5mm; border:1px solid #111; vertical-align:middle; margin-right:2mm; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
           #printArea.paper-result-landscape .color-name { display:inline-block; font-weight:900; vertical-align:middle; }
-          #printArea.paper-result-landscape footer { display:flex; justify-content:space-between; margin-top:8mm; font-size:11pt; font-weight:700; }
+          #printArea.paper-result-landscape footer { display:flex; justify-content:space-between; margin-top:3mm; font-size:9pt; font-weight:700; }
+          #printArea.paper-result-landscape .paper-result-page[style*="--result-font-size:9pt"] .rank-head,
+          #printArea.paper-result-landscape .paper-result-page[style*="--result-font-size:9pt"] .rank-cell { font-size:11pt; }
         `;
         printArea.classList.remove('hidden');
         printArea.classList.add('paper-result-landscape');
@@ -5255,7 +5327,7 @@
       matched.forEach(ev => {
         const candidates = athleteRegistrations.filter(r => {
           const matchEvent = r.eventId === ev.id;
-          const matchGroup = (selectedGroup === 'all' || String(r.group || 1) === String(selectedGroup));
+          const matchGroup = (!eventUsesLanes(ev) || selectedGroup === 'all' || String(r.group || 1) === String(selectedGroup));
           return matchEvent && matchGroup;
         }).sort((a, b) => (a.group - b.group) || (a.lane - b.lane));
 
@@ -5276,14 +5348,15 @@
             `;
           }
 
-          const laneColor = getEventLaneColor(ev, r.lane || 1);
-          const laneColorName = getEventLaneColorName(ev, r.lane || 1);
+          const useLanes = eventUsesLanes(ev);
+          const laneColor = useLanes ? getEventLaneColor(ev, r.lane || 1) : '#ffffff';
+          const laneColorName = useLanes ? getEventLaneColorName(ev, r.lane || 1) : '';
           return `
             <tr>
               <td class="border border-slate-900 p-2 text-center font-mono font-bold">${i + 1}</td>
-              <td class="border border-slate-900 p-2 text-center font-bold whitespace-nowrap">第 ${r.group || 1} 組</td>
-              <td class="border border-slate-900 p-2 text-center font-black whitespace-nowrap">第 ${r.lane || 1} 道</td>
-              <td class="border border-slate-900 p-1 text-center whitespace-nowrap"><span style="display:inline-block;width:22px;height:13px;border:1px solid #334155;border-radius:2px;background:${laneColor};vertical-align:middle;margin-right:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact"></span><span style="display:inline-block;vertical-align:middle;font-size:10px;font-weight:900;color:#111">${laneColorName}</span></td>
+              <td class="border border-slate-900 p-2 text-center font-bold whitespace-nowrap">第 ${useLanes ? (r.group || 1) : 1} 組</td>
+              <td class="border border-slate-900 p-2 text-center font-black whitespace-nowrap">${useLanes ? `第 ${r.lane || 1} 道` : `排序號 ${r.lane || i + 1}`}</td>
+              <td class="border border-slate-900 p-1 text-center whitespace-nowrap">${useLanes ? `<span style="display:inline-block;width:22px;height:13px;border:1px solid #334155;border-radius:2px;background:${laneColor};vertical-align:middle;margin-right:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact"></span><span style="display:inline-block;vertical-align:middle;font-size:10px;font-weight:900;color:#111">${laneColorName}</span>` : '—'}</td>
               <td class="border border-slate-900 p-2 text-center font-bold">${r.classId} 班</td>
               <td class="border border-slate-900 p-2 font-black">
                 ${r.name} ${r.isReserve ? '<span class="text-amber-800 font-bold">(候)</span>' : ''}
@@ -5327,8 +5400,8 @@
                   <tr>
                     <th class="border border-slate-900 p-2 text-center w-10">序</th>
                     <th class="border border-slate-900 p-2 text-center w-16">組別</th>
-                    <th class="border border-slate-900 p-2 text-center w-16">道次/序位</th>
-                    <th class="border border-slate-900 p-1 text-center w-16">顏色</th>
+                    <th class="border border-slate-900 p-2 text-center w-16">${eventUsesLanes(ev) ? '道次/序位' : '排序號'}</th>
+                    <th class="border border-slate-900 p-1 text-center w-16">${eventUsesLanes(ev) ? '顏色' : '—'}</th>
                     <th class="border border-slate-900 p-2 text-center w-16">班級</th>
                     <th class="border border-slate-900 p-2 text-left">選手姓名 / 棒次</th>
                     <th class="border border-slate-900 p-2 text-center w-20">檢錄核驗</th>
