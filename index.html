@@ -880,6 +880,16 @@
             <button id="btnOpenPaperResultPrint" type="button" class="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-sm font-bold shadow flex items-center justify-center"><i class="fa-solid fa-print mr-2"></i>設定篩選並列印成績登記表</button>
           </div>
 
+          <!-- 進入決賽名單列印 -->
+          <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between space-y-5">
+            <div>
+              <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-700 mb-3.5 border border-amber-200"><i class="fa-solid fa-flag-checkered text-xl"></i></div>
+              <h3 class="font-extrabold text-slate-900 text-base">各賽事進入決賽名單 (A4)</h3>
+              <p class="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">依初賽已核算名次列出晉級選手，可選擇年級、賽事及晉級名額；每項賽事獨立分頁。</p>
+            </div>
+            <button onclick="openFinalistPrintModal()" class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-sm font-bold shadow flex items-center justify-center"><i class="fa-solid fa-print mr-2"></i>設定篩選並列印決賽名單</button>
+          </div>
+
           <!-- Card 2: 雙模式優勝紅榜海報 -->
           <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between space-y-5">
             <div>
@@ -1819,6 +1829,18 @@
       <div><label class="block text-sm font-bold mb-1">組別</label><select id="paperResultGroup" class="w-full border rounded-xl p-2.5"><option value="all">全部組別（每組各一張）</option></select></div>
       <p class="text-xs text-slate-500">每組獨立一張 A4 橫式；名次欄優先放大，成績欄留白供稍後補登。</p>
       <div class="flex justify-end gap-2 border-t pt-3"><button onclick="closeModal('paperResultPrintModal')" class="px-4 py-2 bg-slate-100 rounded-xl font-bold">取消</button><button type="button" onclick="executePaperResultPrint()" class="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold">列印成績登記表</button></div>
+    </div>
+  </div>
+
+  <!-- 各賽事進入決賽名單列印設定 -->
+  <div id="finalistPrintModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b pb-3"><h3 class="font-extrabold text-slate-900">進入決賽名單列印設定</h3><button onclick="closeModal('finalistPrintModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button></div>
+      <div><label class="block text-sm font-bold mb-1">年級</label><select id="finalistPrintGrade" onchange="updateFinalistPrintEvents()" class="w-full border rounded-xl p-2.5"><option value="all">全部年級</option><option value="7">七年級</option><option value="8">八年級</option><option value="9">九年級</option></select></div>
+      <div><label class="block text-sm font-bold mb-1">賽事</label><select id="finalistPrintEvent" class="w-full border rounded-xl p-2.5"><option value="all">全部賽事（每項各一頁）</option></select></div>
+      <div><label class="block text-sm font-bold mb-1">每項晉級名額</label><input id="finalistPrintCount" type="number" min="1" max="32" value="8" class="w-full border rounded-xl p-2.5"></div>
+      <p class="text-xs text-slate-500">名單依初賽「核算名次」篩選；同名次並列者一併列入，因此實際人數可能超過設定名額。</p>
+      <div class="flex justify-end gap-2 border-t pt-3"><button onclick="closeModal('finalistPrintModal')" class="px-4 py-2 bg-slate-100 rounded-xl font-bold">取消</button><button onclick="executeFinalistPrint()" class="px-5 py-2 bg-amber-600 text-white rounded-xl font-bold">列印進入決賽名單</button></div>
     </div>
   </div>
 
@@ -3903,6 +3925,9 @@
       if (specialEightWinners) targetEvent._specialAwardQuota = 8;
       else delete targetEvent._specialAwardQuota;
 
+      // 本次輸入值已寫入 eventResults；清除舊的輸入草稿快取，
+      // 避免 renderScoreEntryTable 優先讀到舊 draft 而覆蓋剛核算的成績。
+      candidates.forEach(cand => { delete scoreDraftValues[`${eventId}_${stage}_${cand.studentId}`]; });
       saveLocalEventSnapshot();
       renderScoreEntryTable();
       renderPublicHeroCards();
@@ -5499,6 +5524,72 @@
       });
 
       launchPrintJob(printHtml);
+    }
+
+    function openFinalistPrintModal() {
+      const grade = document.getElementById('finalistPrintGrade');
+      const count = document.getElementById('finalistPrintCount');
+      if (grade) grade.value = 'all';
+      if (count) count.value = '8';
+      updateFinalistPrintEvents();
+      openModal('finalistPrintModal');
+    }
+
+    function updateFinalistPrintEvents() {
+      const grade = String(document.getElementById('finalistPrintGrade')?.value || 'all');
+      const sel = document.getElementById('finalistPrintEvent');
+      if (!sel) return;
+      const list = (eventsList || []).filter(ev => {
+        const g = String(ev.grade ?? '').replace(/年級?$/, '').trim();
+        return grade === 'all' || g === grade || String(ev.grade) === `${grade}年` || String(ev.grade) === `${grade}年級`;
+      });
+      sel.innerHTML = '<option value="all">全部賽事（每項各一頁）</option>' +
+        list.map(ev => `<option value="${escapeHtmlForPrint(String(ev.id))}">[${escapeHtmlForPrint(String(ev.grade || ''))}年] ${escapeHtmlForPrint(String(ev.name || '未命名賽事'))}</option>`).join('');
+    }
+
+    function executeFinalistPrint() {
+      const grade = String(document.getElementById('finalistPrintGrade')?.value || 'all');
+      const eventId = String(document.getElementById('finalistPrintEvent')?.value || 'all');
+      const rawCount = Number(document.getElementById('finalistPrintCount')?.value || 8);
+      const count = Math.max(1, Math.min(32, Math.floor(Number.isFinite(rawCount) ? rawCount : 8)));
+      const selectedEvents = (eventsList || []).filter(ev => {
+        const g = String(ev.grade ?? '').replace(/年級?$/, '').trim();
+        return (grade === 'all' || g === grade || String(ev.grade) === `${grade}年` || String(ev.grade) === `${grade}年級`) &&
+          (eventId === 'all' || String(ev.id) === eventId);
+      });
+      if (!selectedEvents.length) { showToast('目前沒有符合條件的賽事。', 'error'); return; }
+
+      const pages = [];
+      selectedEvents.forEach(ev => {
+        const prelim = (eventResults || []).filter(r => String(r.eventId) === String(ev.id) && r.stage === 'prelim' && Number(r.rank) > 0)
+          .sort((a,b) => Number(a.rank) - Number(b.rank) || Number(a.group || 1) - Number(b.group || 1) || Number(a.lane || 1) - Number(b.lane || 1));
+        if (!prelim.length) return;
+        const qualified = prelim.filter(r => Number(r.rank) <= count);
+        if (!qualified.length) return;
+        const rows = qualified.map((r, i) => `<tr>
+          <td>${i + 1}</td><td>${escapeHtmlForPrint(String(r.rankLabel || `第 ${r.rank} 名`))}</td>
+          <td>${escapeHtmlForPrint(String(r.classId || ''))}</td><td>${escapeHtmlForPrint(String(r.name || ''))}</td>
+          <td>${escapeHtmlForPrint(String(r.group || 1))}</td><td>${escapeHtmlForPrint(eventUsesLanes(ev) ? String(r.lane || 1) : String(r.lane || 1))}</td>
+          <td>${escapeHtmlForPrint(String(r.score ?? ''))}</td><td></td>
+        </tr>`).join('');
+        pages.push(`<section class="finalist-page">
+          <h1>${escapeHtmlForPrint(String(systemConfig.academicYear || ''))} 學年度 佳林國中運動會</h1>
+          <h2>${escapeHtmlForPrint(String(ev.grade || ''))}年級　${escapeHtmlForPrint(String(ev.name || ''))}</h2>
+          <h3>進入決賽名單（初賽前 ${count} 名；同名次並列者一併晉級）</h3>
+          <table><thead><tr><th>序號</th><th>初賽名次</th><th>班級</th><th>姓名</th><th>組別</th><th>${eventUsesLanes(ev) ? '道次' : '序位'}</th><th>初賽成績</th><th>確認</th></tr></thead><tbody>${rows}</tbody></table>
+          <div class="sign">承辦人：________________　裁判長：________________　日期：________________</div>
+        </section>`);
+      });
+      if (!pages.length) { showToast('所選賽事尚無已核算的初賽名次，請先完成初賽成績核算。', 'error'); return; }
+      closeModal('finalistPrintModal');
+      launchPrintJob(`<style>
+        @page{size:A4 portrait;margin:14mm} .finalist-page{font-family:Arial,'Microsoft JhengHei',sans-serif;color:#111;page-break-after:always} .finalist-page:last-child{page-break-after:auto}
+        h1{text-align:center;font-size:20pt;margin:0 0 8px} h2{text-align:center;font-size:17pt;margin:0 0 6px} h3{text-align:center;font-size:12pt;margin:0 0 18px}
+        table{width:100%;border-collapse:collapse;font-size:11pt} th,td{border:1px solid #222;padding:8px 5px;text-align:center} th{background:#eee;font-weight:bold}
+        .sign{margin-top:28px;font-size:11pt;display:flex;justify-content:space-between}
+        @media print{body{margin:0}}
+      </style>${pages.join('')}`);
+      showToast(`已建立 ${pages.length} 項賽事的進入決賽名單。`, 'success');
     }
 
     function openPosterPrintModal(isManual) {
