@@ -3693,6 +3693,17 @@
       renderScoreEntryTable();
     }
 
+    function isSportsClassById(classId) {
+      const key = String(classId == null ? '' : classId).trim();
+      const raw = classTypesMap && (classTypesMap[key] != null ? classTypesMap[key] : classTypesMap[Number(key)]);
+      const value = String(raw == null ? '' : raw).trim().toLowerCase();
+      if (['sports', 'sport', '體育班', '體育', '體育組', 'true', '1'].includes(value)) return true;
+      if (['regular', '普通班', '一般班', 'false', '0', ''].includes(value)) return false;
+      const student = (studentsList || []).find(s => String(s.classId).trim() === key);
+      const studentType = String(student && (student.classType || student.classTypeName || student.type) || '').trim().toLowerCase();
+      return ['sports', 'sport', '體育班', '體育', '體育組'].includes(studentType);
+    }
+
     function renderScoreEntryTable() {
       const tbody = document.getElementById('adminScoreTableBody');
       if (!tbody) return;
@@ -3716,7 +3727,7 @@
         const awardQuota = getEventAwardQuota(targetEvent);
         const isAwardWinner = existing && existing.rank > 0 && existing.rank <= awardQuota;
         const curRank = existing ? existing.rankLabel : '－';
-        const isSports = (classTypesMap[cand.classId] === 'sports');
+        const isSports = isSportsClassById(cand.classId);
         const laneColor = getEventLaneColor(targetEvent, cand.lane);
         const laneText = eventUsesLanes(targetEvent) ? `第 ${cand.lane || 1} 道` : `排序號 ${cand.lane || 1}`;
 
@@ -3744,7 +3755,7 @@
       }).join('');
     }
 
-    function saveAllEnteredScores() {
+    async function saveAllEnteredScores() {
       const eventId = document.getElementById('scoreFilterEvent').value;
       const stage = document.getElementById('scoreFilterStage').value;
       const targetEvent = eventsList.find(x => x.id === eventId);
@@ -3762,7 +3773,7 @@
             cand,
             scoreStr: valStr,
             numericScore: num,
-            isSports: (classTypesMap[cand.classId] === 'sports')
+            isSports: isSportsClassById(cand.classId)
           });
         }
       });
@@ -3850,7 +3861,26 @@
       saveLocalEventSnapshot();
       renderScoreEntryTable();
       renderPublicHeroCards();
-      showToast('成績試算儲存成功！體育班特殊排名已自動核定。');
+
+      // 成績輸入人員必須將本次賽事／階段的成績寫回 GAS，不能只存瀏覽器 localStorage。
+      if (!gasSessionToken || !currentUser || !['score', 'admin'].includes(currentUser.role)) {
+        showToast('成績目前只保存在本機，尚未取得 GAS 雲端授權；請重新登入後再儲存。', 'error');
+        return;
+      }
+      try {
+        const rowsToSave = eventResults.filter(r => String(r.eventId) === String(eventId) && String(r.stage) === String(stage));
+        const saved = await gasRequest({
+          action: 'saveScores',
+          token: gasSessionToken,
+          eventId: eventId,
+          stage: stage,
+          results: rowsToSave
+        });
+        cloudStateLastUpdatedAt = Number(saved.updatedAt || Date.now());
+        showToast('成績已成功儲存至雲端！重新登入仍會保留；體育班特殊排名已核定。', 'success');
+      } catch (err) {
+        showToast('雲端儲存失敗：' + (err.message || err) + '。本機暫存仍保留，請確認連線後重新儲存。', 'error');
+      }
     }
 
     function promotePrelimToFinal() {
@@ -5972,10 +6002,16 @@
         const u = document.getElementById('scoreAccountInput').value.trim();
         const p = document.getElementById('scorePasswordInput').value.trim();
         if (u === authAccounts.score.username && p === authAccounts.score.password) {
-          currentUser = { role: 'score' };
-          closeModal('loginModal');
-          showScoreEntryDashboard();
-          showToast('成績輸入權限登入成功！');
+          try {
+            await loginToGas(u, p);
+            currentUser = { role: 'score' };
+            closeModal('loginModal');
+            showScoreEntryDashboard();
+            showToast('成績輸入權限登入成功，已載入雲端成績！', 'success');
+          } catch (err) {
+            gasSessionToken = null;
+            showToast('成績輸入帳號的雲端授權失敗：' + (err.message || err) + '。請管理員先同步成績輸入帳號設定。', 'error');
+          }
         } else { showToast('成績輸入帳號或密碼錯誤！', 'error'); }
       } else {
         const cls = document.getElementById('classLoginSelect').value;
@@ -6065,7 +6101,7 @@
       openModal('authAccountModal');
     }
 
-    function saveAuthAccountSettings() {
+    async function saveAuthAccountSettings() {
       if (!currentUser || currentUser.role !== 'admin') { showToast('只有大會管理員可以修改系統帳密！', 'error'); return; }
       const au = document.getElementById('authAdminUsernameInput').value.trim();
       const ap = document.getElementById('authAdminPasswordInput').value.trim();
@@ -6073,10 +6109,17 @@
       const sp = document.getElementById('authScorePasswordInput').value.trim();
       if (!au || !ap || !su || !sp) { showToast('管理員與成績輸入帳密都必須填寫！', 'error'); return; }
       if (au === su) { showToast('兩組帳號不可相同，請分開設定！', 'error'); return; }
+      if (!gasSessionToken) { showToast('目前沒有 GAS 管理員授權，無法同步成績輸入帳號；請重新登入後再設定。', 'error'); return; }
+      try {
+        await gasRequest({ action: 'setScoreCredentials', token: gasSessionToken, username: su, password: sp });
+      } catch (err) {
+        showToast('成績輸入帳號雲端更新失敗：' + (err.message || err), 'error');
+        return;
+      }
       authAccounts = { admin: { username: au, password: ap }, score: { username: su, password: sp } };
       saveAuthAccounts();
       closeModal('authAccountModal');
-      showToast('系統帳密已成功更新！');
+      showToast('系統帳密已更新，成績輸入帳號已同步至 GAS。', 'success');
     }
 
     function openBatchPasswordModal() {
