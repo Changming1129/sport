@@ -3704,7 +3704,9 @@
       return ['sports', 'sport', '體育班', '體育', '體育組'].includes(studentType);
     }
 
-    let scoreTableSort = { key: 'group', direction: 'asc' };
+    // 預設以組別為第一排序鍵、道次為第二排序鍵。
+    // 點擊道次時只改變各組內的道次順序，組別順序固定由小到大。
+    let scoreTableSort = { key: 'group', direction: 'asc', groupLaneMode: true };
     const scoreDraftValues = {};
     function sortScoreTableBy(key) {
       const eventId = document.getElementById('scoreFilterEvent')?.value || '';
@@ -3712,8 +3714,17 @@
       document.querySelectorAll('#adminScoreTableBody input[id^="scoreInput_"]').forEach(el => {
         scoreDraftValues[`${eventId}_${stage}_${el.id.replace('scoreInput_', '')}`] = el.value;
       });
-      if (scoreTableSort.key === key) scoreTableSort.direction = scoreTableSort.direction === 'asc' ? 'desc' : 'asc';
-      else scoreTableSort = { key, direction: 'asc' };
+      if (key === 'group') {
+        scoreTableSort = { key: 'group', direction: 'asc', groupLaneMode: true };
+      } else if (key === 'lane') {
+        const direction = scoreTableSort.key === 'lane'
+          ? (scoreTableSort.direction === 'asc' ? 'desc' : 'asc') : 'asc';
+        scoreTableSort = { key: 'lane', direction, groupLaneMode: true };
+      } else {
+        const direction = scoreTableSort.key === key
+          ? (scoreTableSort.direction === 'asc' ? 'desc' : 'asc') : 'asc';
+        scoreTableSort = { key, direction, groupLaneMode: false };
+      }
       renderScoreEntryTable();
     }
 
@@ -3739,6 +3750,12 @@
       const rankValue = cand => { const r = eventResults.find(x => x.eventId === eventId && x.stage === stage && x.studentId === cand.studentId); return r && Number(r.rank) > 0 ? Number(r.rank) : Number.MAX_SAFE_INTEGER; };
       const scoreValue = cand => { const draft = scoreDraftValues[`${eventId}_${stage}_${cand.studentId}`]; const r = eventResults.find(x => x.eventId === eventId && x.stage === stage && x.studentId === cand.studentId); const v = draft != null ? draft : (r ? r.score : ''); return v === '' || !Number.isFinite(Number(v)) ? Number.MAX_SAFE_INTEGER : Number(v); };
       candidates.sort((a,b) => {
+        if (scoreTableSort.groupLaneMode || sortKey === 'lane') {
+          const groupDiff = Number(a.group || 1) - Number(b.group || 1);
+          if (groupDiff !== 0) return groupDiff;
+          const laneDiff = Number(a.lane || 1) - Number(b.lane || 1);
+          return laneDiff * (sortKey === 'lane' ? sortDir : 1);
+        }
         let av, bv;
         if (sortKey === 'group') { av = Number(a.group || 1); bv = Number(b.group || 1); }
         else if (sortKey === 'lane') { av = Number(a.lane || 1); bv = Number(b.lane || 1); }
@@ -3749,7 +3766,13 @@
         else return 0;
         return (av < bv ? -1 : av > bv ? 1 : 0) * sortDir;
       });
-      ['group','lane','classId','classType','score','rank'].forEach(k => { const el = document.getElementById('scoreSort_' + k); if (el) el.textContent = scoreTableSort.key === k ? (scoreTableSort.direction === 'asc' ? '↑' : '↓') : '↕'; });
+      ['group','lane','classId','classType','score','rank'].forEach(k => {
+        const el = document.getElementById('scoreSort_' + k);
+        if (!el) return;
+        if (scoreTableSort.groupLaneMode && k === 'group') el.textContent = '↑';
+        else if (scoreTableSort.key === k) el.textContent = scoreTableSort.direction === 'asc' ? '↑' : '↓';
+        else el.textContent = '↕';
+      });
       tbody.innerHTML = candidates.map(cand => {
         const existing = eventResults.find(r => r.eventId === eventId && r.stage === stage && r.studentId === cand.studentId);
         const draftScore = scoreDraftValues[`${eventId}_${stage}_${cand.studentId}`];
