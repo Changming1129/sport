@@ -232,7 +232,7 @@
         border-bottom: 2px solid currentColor;
       }
 
-      /* 數位套印版：第一名（並列）固定分成兩行 */
+      /* 數位套印版：第1名（並列）固定分成兩行 */
       #printArea .poster-format-v2 .rank-label-split {
         display: inline-flex;
         flex-direction: column;
@@ -703,7 +703,7 @@
               <button onclick="toggleSelectedClassType('regular')" class="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold">設為普通班</button>
             </div>
             <div class="text-xs text-amber-800 font-medium">
-              * 體育班排名機制：決賽時若體育班獲第一名，普通班次席與其並列第一名頒獎。
+              * 體育班排名機制：決賽時若體育班獲第1名，普通班次席與其並列第1名頒獎。
             </div>
           </div>
 
@@ -740,7 +740,7 @@
                 <option value="8">八年級</option>
                 <option value="9">九年級</option>
               </select>
-              <select id="regFilterEvent" onchange="renderAdminRegistrationsTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm font-bold w-56">
+              <select id="regFilterEvent" onchange="onRegFilterEventChange()" class="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm font-bold w-56">
                 <!-- Populated dynamically -->
               </select>
               <select id="regFilterClass" onchange="renderAdminRegistrationsTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm font-bold">
@@ -752,6 +752,7 @@
               <button onclick="openRegistrationEditModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black shadow flex items-center">
                 <i class="fa-solid fa-user-plus mr-2"></i>新增參賽人員
               </button>
+              <button onclick="openRelayClassAllocationModal('registration')" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold shadow flex items-center">接力班級批次分組／道次／顏色</button>
               <button onclick="openGroupAllocationModal()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow flex items-center">
                 <i class="fa-solid fa-arrows-split-up-and-left mr-2"></i>分組與道次序位抽籤編排
               </button>
@@ -805,6 +806,7 @@
                 <span class="text-slate-600 font-bold">晉級複賽人數:</span>
                 <input type="number" id="promoteCountInput" value="8" min="1" max="24" class="w-16 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1 text-center font-bold">
               </div>
+              <button onclick="openRelayClassAllocationModal('final')" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-bold shadow">接力複賽班級批次編排</button>
               <button onclick="promotePrelimToFinal()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold shadow">
                 一鍵晉級至決賽
               </button>
@@ -825,7 +827,7 @@
             </div>
             <label class="flex items-center space-x-2 cursor-pointer font-bold text-indigo-900 bg-white px-4 py-2 rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-100/50 transition">
               <input type="checkbox" id="checkCoFirstRule" checked onchange="saveAllEnteredScores()" class="w-4 h-4 rounded text-indigo-600 cursor-pointer">
-              <span>啟用體育班榜首時，普通班次席並列第一名</span>
+              <span>啟用體育班榜首時，普通班次席並列第1名</span>
             </label>
           </div>
 
@@ -1800,6 +1802,16 @@
           </select>
           <p class="text-xs text-slate-400 mt-1">可選擇全部組別，或只列印指定第 1、2、3…組。</p>
         </div>
+        <div id="relayChecklistSettings" class="hidden border border-amber-200 bg-amber-50 rounded-xl p-3 space-y-3">
+          <div class="font-black text-amber-900">接力賽：班級道次編排</div>
+          <div id="relayClassLaneEditor" class="space-y-2"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="block text-xs font-bold mb-1">查詢班級</label><select id="relayLookupClass" onchange="renderRelayRosterLookup()" class="w-full border rounded-lg p-2"></select></div>
+            <div><label class="block text-xs font-bold mb-1">查詢棒次</label><select id="relayLookupLeg" onchange="renderRelayRosterLookup()" class="w-full border rounded-lg p-2"><option value="all">全部棒次</option></select></div>
+          </div>
+          <div id="relayRosterLookup" class="text-xs bg-white rounded-lg border p-2 min-h-10">選擇班級與棒次即可查詢選手名單。</div>
+          <p class="text-xs text-amber-800">每班以一個道次為單位列印；各棒次選手依報名資料列出，候補選手另行標示。</p>
+        </div>
         <div>
           <label class="block font-bold text-slate-700 mb-1">田賽試跳/試擲次數欄位 (徑賽自動不顯示)：</label>
           <select id="checkPrintFieldTrials" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold">
@@ -1820,6 +1832,17 @@
     </div>
   </div>
 
+  <!-- 接力賽班級批次分組／道次／顏色 -->
+  <div id="relayClassAllocationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-5 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b pb-3"><div><h3 class="text-lg font-black">接力賽班級批次分組／道次／顏色</h3><p id="relayClassAllocationHint" class="text-xs text-slate-500 mt-1">一個班級視為一支隊伍，同班所有棒次與候補共用設定。</p></div><button onclick="closeRelayClassAllocationModal()" class="text-slate-400 text-xl">✕</button></div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3"><label class="text-sm font-bold">賽事<select id="relayAllocEvent" onchange="renderRelayClassAllocationRows()" class="mt-1 w-full border rounded-xl p-2"></select></label><label class="text-sm font-bold">年級<select id="relayAllocGrade" onchange="renderRelayClassAllocationRows()" class="mt-1 w-full border rounded-xl p-2"><option value="all">依賽事自動／全部</option><option value="7">七年級</option><option value="8">八年級</option><option value="9">九年級</option></select></label><label id="relayAllocStageWrap" class="text-sm font-bold">比賽階段<select id="relayAllocStage" onchange="renderRelayClassAllocationRows()" class="mt-1 w-full border rounded-xl p-2"><option value="prelim">初賽／預賽</option><option value="final">複賽／決賽</option></select></label></div>
+      <div class="flex flex-wrap items-center gap-2"><button onclick="autoAssignRelayClassHeats()" class="px-3 py-2 bg-slate-100 rounded-lg text-sm font-bold">依班級順序自動每六班分一組</button><span class="text-xs text-slate-500">可再逐班修改組別、道次及顏色；同組道次不可重複。</span></div>
+      <div id="relayClassAllocationRows" class="space-y-2"></div>
+      <div class="flex justify-end gap-2 border-t pt-3"><button onclick="closeRelayClassAllocationModal()" class="px-4 py-2 bg-slate-100 rounded-xl font-bold">取消</button><button onclick="applyRelayClassAllocation()" class="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold">套用所有班級</button></div>
+    </div>
+  </div>
+
   <!-- 紙本成績登記表列印設定 -->
   <div id="paperResultPrintModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
@@ -1827,7 +1850,12 @@
       <div><label class="block text-sm font-bold mb-1">年級</label><select id="paperResultGrade" onchange="updatePaperResultEvents()" class="w-full border rounded-xl p-2.5"><option value="all">全部年級</option><option value="7">七年級</option><option value="8">八年級</option><option value="9">九年級</option></select></div>
       <div><label class="block text-sm font-bold mb-1">賽事</label><select id="paperResultEvent" onchange="updatePaperResultGroups()" class="w-full border rounded-xl p-2.5"></select></div>
       <div><label class="block text-sm font-bold mb-1">組別</label><select id="paperResultGroup" class="w-full border rounded-xl p-2.5"><option value="all">全部組別（每組各一張）</option></select></div>
-      <p class="text-xs text-slate-500">每組獨立一張 A4 橫式；名次欄優先放大，成績欄留白供稍後補登。</p>
+      <div id="relayPaperSettings" class="hidden border border-amber-200 bg-amber-50 rounded-xl p-3 space-y-2">
+        <div class="flex items-center justify-between gap-2"><b class="text-sm text-amber-900">接力賽分組／道次／服裝顏色</b><select id="paperResultStage" onchange="renderRelayPaperGroupEditor()" class="border rounded-lg p-1.5 text-xs"><option value="prelim">初賽／預賽</option><option value="final">決賽／總決賽</option></select></div>
+        <p class="text-xs text-amber-800">每組最多 6 班。可自行調整組別、道次、顏色及色名；初賽依此處設定；決賽／複賽道次與顏色以「成績試算－決賽／總決賽」設定為準。列印時每組各一張 A4 橫式。</p>
+        <div id="relayPaperGroupEditor" class="max-h-56 overflow-y-auto space-y-1"><span class="text-xs">選擇接力賽以編輯班級分組。</span></div>
+      </div>
+      <p class="text-xs text-slate-500">一般賽事每組獨立一張 A4 橫式；接力賽每組最多六班、每組獨立一張。</p>
       <div class="flex justify-end gap-2 border-t pt-3"><button onclick="closeModal('paperResultPrintModal')" class="px-4 py-2 bg-slate-100 rounded-xl font-bold">取消</button><button type="button" onclick="executePaperResultPrint()" class="px-5 py-2 bg-emerald-700 text-white rounded-xl font-bold">列印成績登記表</button></div>
     </div>
   </div>
@@ -1837,9 +1865,10 @@
     <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b pb-3"><h3 class="font-extrabold text-slate-900">進入決賽名單列印設定</h3><button onclick="closeModal('finalistPrintModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button></div>
       <div><label class="block text-sm font-bold mb-1">年級</label><select id="finalistPrintGrade" onchange="updateFinalistPrintEvents()" class="w-full border rounded-xl p-2.5"><option value="all">全部年級</option><option value="7">七年級</option><option value="8">八年級</option><option value="9">九年級</option></select></div>
-      <div><label class="block text-sm font-bold mb-1">賽事</label><select id="finalistPrintEvent" class="w-full border rounded-xl p-2.5"><option value="all">全部賽事（每項各一頁）</option></select></div>
-      <div><label class="block text-sm font-bold mb-1">每項晉級名額</label><input id="finalistPrintCount" type="number" min="1" max="32" value="8" class="w-full border rounded-xl p-2.5"></div>
-      <p class="text-xs text-slate-500">名單依初賽「核算名次」篩選；同名次並列者一併列入，因此實際人數可能超過設定名額。</p>
+      <div><label class="block text-sm font-bold mb-1">賽事</label><select id="finalistPrintEvent" onchange="renderFinalistLaneEditor()" class="w-full border rounded-xl p-2.5"><option value="all">全部賽事（每項各一頁）</option></select></div>
+      <div><label class="block text-sm font-bold mb-1">每項晉級名額</label><input id="finalistPrintCount" type="number" min="1" max="32" value="8" oninput="renderFinalistLaneEditor()" class="w-full border rounded-xl p-2.5"></div>
+      <div id="finalistLaneEditor" class="max-h-64 overflow-y-auto border rounded-xl p-2 space-y-2"><p class="text-xs text-slate-500">選擇單一賽事後，可調整各決賽選手道次。</p></div>
+      <p class="text-xs text-slate-500">名單依初賽「核算名次」篩選；同名次並列者一併列入。可重新編排決賽道次及顏色。</p>
       <div class="flex justify-end gap-2 border-t pt-3"><button onclick="closeModal('finalistPrintModal')" class="px-4 py-2 bg-slate-100 rounded-xl font-bold">取消</button><button onclick="executeFinalistPrint()" class="px-5 py-2 bg-amber-600 text-white rounded-xl font-bold">列印進入決賽名單</button></div>
     </div>
   </div>
@@ -2189,7 +2218,7 @@
     eventsList.forEach(e => { e.awardQuota = normalizeAwardQuota(e.awardQuota); if (!e.laneColor) e.laneColor = '#2563eb'; e.requireClassRegistration = !!e.requireClassRegistration; });
 
     let announcementsList = [
-      { id: 'A001', title: '115 學年度全校運動大會競賽規程修訂公告', date: '2026-09-01', content: '各位導師與體育股長好：<br>本學年度全校運動會線上報名已正式啟動！<br><b>【體育班並列排名規則】</b>普通班次席與體育班榜首將並列第一名頒發獎狀以資鼓勵。請各班於期限內完成名冊確認。' },
+      { id: 'A001', title: '115 學年度全校運動大會競賽規程修訂公告', date: '2026-09-01', content: '各位導師與體育股長好：<br>本學年度全校運動會線上報名已正式啟動！<br><b>【體育班並列排名規則】</b>普通班次席與體育班榜首將並列第1名頒發獎狀以資鼓勵。請各班於期限內完成名冊確認。' },
       { id: 'A002', title: '大隊接力棒次編配與候補須知', date: '2026-09-03', content: '大隊接力每班指派 16 位正式棒次與 <b>2 位候補選手</b>，檢錄時將嚴格核對號碼布與道次序位。' }
     ];
 
@@ -2211,8 +2240,8 @@
     ];
 
     let eventResults = [
-      { id: 'RES01', eventId: 'E701', stage: 'final', classId: '705', studentId: 'S70501', name: '張強森 (體)', isSportsClass: true, group: 1, lane: 3, score: '11.82', numericScore: 11.82, rank: 1, rankLabel: '第一名', note: '體育班最優', printed: false, serialNo: '' },
-      { id: 'RES02', eventId: 'E701', stage: 'final', classId: '701', studentId: 'S70101', name: '陳小明', isSportsClass: false, group: 1, lane: 4, score: '12.15', numericScore: 12.15, rank: 1, rankLabel: '第一名 (並列)', note: '普通班最優並列第一', printed: false, serialNo: '' },
+      { id: 'RES01', eventId: 'E701', stage: 'final', classId: '705', studentId: 'S70501', name: '張強森 (體)', isSportsClass: true, group: 1, lane: 3, score: '11.82', numericScore: 11.82, rank: 1, rankLabel: '第1名', note: '體育班最優', printed: false, serialNo: '' },
+      { id: 'RES02', eventId: 'E701', stage: 'final', classId: '701', studentId: 'S70101', name: '陳小明', isSportsClass: false, group: 1, lane: 4, score: '12.15', numericScore: 12.15, rank: 1, rankLabel: '第1名 (並列)', note: '普通班最優並列第一', printed: false, serialNo: '' },
       { id: 'RES03', eventId: 'E701', stage: 'final', classId: '701', studentId: 'S70102', name: '林大華', isSportsClass: false, group: 1, lane: 5, score: '12.48', numericScore: 12.48, rank: 3, rankLabel: '第三名', note: '', printed: false, serialNo: '' }
     ];
 
@@ -3354,6 +3383,30 @@
       reader.readAsText(file, 'UTF-8');
     }
 
+    function getRegistrationFilterClasses() {
+      const gradeFilter = String(document.getElementById('regFilterGrade')?.value || 'all');
+      const eventId = String(document.getElementById('regFilterEvent')?.value || 'all');
+      const selectedEvent = eventId === 'all' ? null : eventsList.find(ev => String(ev.id) === eventId);
+      // 選定單一年級賽事時，以賽事年級為優先；全校賽事則依左側年級篩選。
+      const eventGrade = selectedEvent && String(selectedEvent.grade) !== 'all_school'
+        ? String(selectedEvent.grade) : 'all';
+      const effectiveGrade = eventGrade !== 'all' ? eventGrade : gradeFilter;
+      return Object.keys(classAccounts || {}).filter(cls =>
+        effectiveGrade === 'all' || String(cls).charAt(0) === effectiveGrade
+      ).sort((a, b) => String(a).localeCompare(String(b), 'zh-Hant', { numeric: true }));
+    }
+
+    function refreshRegFilterClassOptions() {
+      const cSel = document.getElementById('regFilterClass');
+      if (!cSel) return;
+      const previous = cSel.value || 'all';
+      const classes = getRegistrationFilterClasses();
+      cSel.innerHTML = '<option value="all">全部班級</option>' + classes.map(cls =>
+        `<option value="${String(cls).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">${String(cls).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')} 班</option>`
+      ).join('');
+      cSel.value = classes.includes(previous) ? previous : 'all';
+    }
+
     function initRegFilters() {
       const eSel = document.getElementById('regFilterEvent');
       const cSel = document.getElementById('regFilterClass');
@@ -3362,20 +3415,25 @@
       eventsList.forEach(e => {
         eSel.innerHTML += `<option value="${e.id}">[${e.grade}年] ${e.name} (${e.category})</option>`;
       });
-      cSel.innerHTML = '<option value="all">全部班級</option>';
-      Object.keys(classAccounts).forEach(cls => {
-        cSel.innerHTML += `<option value="${cls}">${cls} 班</option>`;
-      });
+      refreshRegFilterClassOptions();
     }
 
     function onRegFilterGradeChange() {
-      const g = document.getElementById('regFilterGrade').value;
+      const g = String(document.getElementById('regFilterGrade').value);
       const eSel = document.getElementById('regFilterEvent');
       if (!eSel) return;
+      const previousEvent = eSel.value;
       eSel.innerHTML = '<option value="all">全部項目</option>';
-      eventsList.filter(e => g === 'all' || e.grade === g).forEach(e => {
+      eventsList.filter(e => g === 'all' || String(e.grade) === g || String(e.grade) === 'all_school').forEach(e => {
         eSel.innerHTML += `<option value="${e.id}">[${e.grade}年] ${e.name} (${e.category})</option>`;
       });
+      if ([...eSel.options].some(o => o.value === previousEvent)) eSel.value = previousEvent;
+      refreshRegFilterClassOptions();
+      renderAdminRegistrationsTable();
+    }
+
+    function onRegFilterEventChange() {
+      refreshRegFilterClassOptions();
       renderAdminRegistrationsTable();
     }
 
@@ -3409,6 +3467,15 @@
       const e = document.getElementById('regFilterEvent').value;
       const c = document.getElementById('regFilterClass').value;
 
+      // 相容舊版資料：接力賽同班只保留一組／一道，以該班第一筆報名資料為準。
+      const relayEventIds = new Set(eventsList.filter(x => x.category === '接力賽').map(x => String(x.id)));
+      const relayClassDefaults = new Map();
+      athleteRegistrations.forEach(r => {
+        if (!relayEventIds.has(String(r.eventId))) return;
+        const key = String(r.eventId) + '_' + String(r.classId);
+        if (!relayClassDefaults.has(key)) relayClassDefaults.set(key, { group:Number(r.group)||1, lane:Number(r.lane)||1 });
+        const base = relayClassDefaults.get(key); r.group = base.group; r.lane = base.lane;
+      });
       const filtered = athleteRegistrations.filter(r => {
         const matchG = (g === 'all' || r.grade === g);
         const matchE = (e === 'all' || r.eventId === e);
@@ -3426,8 +3493,13 @@
       tbody.innerHTML = filtered.map(r => {
         const ev = eventsList.find(x => x.id === r.eventId) || { name: '未知項目' };
         const isSports = (classTypesMap[r.classId] === 'sports');
-        const laneColor = getEventLaneColor(ev, r.lane);
-        const laneText = eventUsesLanes(ev) ? `第 ${r.lane || 1} 道` : `排序號 ${r.lane || 1}`;
+        const classRelayRows = ev.category === '接力賽' ? athleteRegistrations.filter(x => String(x.eventId)===String(r.eventId) && String(x.classId)===String(r.classId)) : [];
+        const relayGroup = classRelayRows.length ? (Number(classRelayRows[0].group)||1) : (Number(r.group)||1);
+        const relayLane = classRelayRows.length ? (Number(classRelayRows[0].lane)||1) : (Number(r.lane)||1);
+        const displayGroup = ev.category === '接力賽' ? relayGroup : (Number(r.group)||1);
+        const displayLane = ev.category === '接力賽' ? relayLane : (Number(r.lane)||1);
+        const laneColor = ev.category === '接力賽' ? (classRelayRows[0]?.laneColor || getEventLaneColor(ev, displayLane)) : getEventLaneColor(ev, displayLane);
+        const laneText = eventUsesLanes(ev) ? `第 ${displayLane} 道` : `排序號 ${displayLane}`;
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3.5 font-bold">${r.grade} 年級</td>
@@ -3442,7 +3514,7 @@
               ${r.name} ${r.isReserve ? '<span class="text-amber-600 font-bold">(候補)</span>' : ''}
               ${r.leg ? `<span class="ml-1 text-xs text-indigo-600">[第${r.leg}棒]</span>` : ''}
             </td>
-            <td class="p-3.5 font-mono font-bold">第 ${r.group || 1} 組</td>
+            <td class="p-3.5 font-mono font-bold">第 ${displayGroup} 組</td>
             <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap">${eventUsesLanes(ev) ? `<span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>` : ''}${laneText}</td>
             <td class="p-3.5 text-right whitespace-nowrap">
               <div class="flex items-center justify-end gap-2">
@@ -3607,6 +3679,16 @@
         if (idx >= 0) athleteRegistrations[idx] = { ...athleteRegistrations[idx], ...payload };
       } else {
         athleteRegistrations.push(payload);
+      }
+      // 接力賽以「班級」為隊伍單位：同一賽事、同一班級的所有棒次／候補
+      // 必須共用同一組別與道次，編輯任一隊員時同步整班，避免同班拆到不同組或跑道。
+      if (ev.category === '接力賽') {
+        athleteRegistrations.forEach(r => {
+          if (String(r.eventId) === String(eventId) && String(r.classId) === String(classId)) {
+            r.group = effectiveGroup;
+            r.lane = lane;
+          }
+        });
       }
 
       // 先寫入本機快照，避免網路中斷時資料立即遺失；接著同步至 GAS，才能跨瀏覽器／重新開啟保留。
@@ -3803,13 +3885,17 @@
         const isAwardWinner = existing && existing.rank > 0 && existing.rank <= awardQuota;
         const curRank = existing ? existing.rankLabel : '－';
         const isSports = isSportsClassById(cand.classId);
-        const laneColor = getEventLaneColor(targetEvent, cand.lane);
-        const laneText = eventUsesLanes(targetEvent) ? `第 ${cand.lane || 1} 道` : `排序號 ${cand.lane || 1}`;
+        const finalLane = Number(existing?.finalLane || existing?.lane || cand.lane || 1);
+        const finalColor = String(existing?.finalColor || getEventLaneColor(targetEvent, finalLane));
+        const finalColorName = String(existing?.finalColorName || getEventLaneColorName(targetEvent, finalLane));
+        const laneColor = stage === 'final' ? finalColor : getEventLaneColor(targetEvent, cand.lane);
+        const laneText = eventUsesLanes(targetEvent) ? `第 ${stage === 'final' ? finalLane : (cand.lane || 1)} 道` : `排序號 ${stage === 'final' ? finalLane : (cand.lane || 1)}`;
+        const laneEditor = stage === 'final' ? `<div class="flex flex-wrap items-center gap-1.5 mt-1"><label class="text-[10px] text-slate-500">${targetEvent.category === '接力賽' ? '班級複賽道次' : '決賽道次'} <input type="number" min="1" max="12" value="${finalLane}" onchange="updateFinalResultField('${String(existing?.id || '').replace(/'/g, '')}','finalLane',this.value,'${String(cand.studentId).replace(/'/g, '')}')" class="w-12 border rounded px-1 py-0.5 text-center text-xs"></label><label class="flex items-center gap-1 text-[10px] text-slate-500">顏色 <input type="color" value="${escapeHtmlForPrint(finalColor)}" onchange="updateFinalResultField('${String(existing?.id || '').replace(/'/g, '')}','finalColor',this.value,'${String(cand.studentId).replace(/'/g, '')}')" class="w-7 h-6 border rounded p-0.5"></label><input type="text" maxlength="8" value="${escapeHtmlForPrint(finalColorName)}" aria-label="決賽道次服裝顏色名稱" onchange="updateFinalResultField('${String(existing?.id || '').replace(/'/g, '')}','finalColorName',this.value,'${String(cand.studentId).replace(/'/g, '')}')" class="w-12 border rounded px-1 py-0.5 text-[10px]" placeholder="色名">${targetEvent.category === '接力賽' ? '<span class="text-[10px] text-amber-700">同班共用</span>' : ''}</div>` : '';
 
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3.5 font-mono font-bold">第 ${cand.group || 1} 組</td>
-            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap">${eventUsesLanes(targetEvent) ? `<span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>` : ''}${laneText}</td>
+            <td class="p-3.5 font-mono font-black text-blue-900 whitespace-nowrap">${eventUsesLanes(targetEvent) ? `<span class="inline-block w-3 h-3 rounded-full mr-1.5 align-middle border border-slate-400" style="background:${laneColor}"></span>` : ''}${laneText}${laneEditor}</td>
             <td class="p-3.5 font-bold">${cand.classId} 班</td>
             <td class="p-3.5 font-black text-slate-900">${cand.name}</td>
             <td class="p-3.5">
@@ -3828,6 +3914,50 @@
           </tr>
         `;
       }).join('');
+    }
+
+    async function updateFinalResultField(resultId, field, value, studentId) {
+      const eventId = String(document.getElementById('scoreFilterEvent')?.value || '');
+      const targetEvent = eventsList.find(e => String(e.id) === eventId);
+      if (!targetEvent || !['finalLane','finalColor','finalColorName'].includes(field)) return;
+      let row = eventResults.find(r => String(r.id) === String(resultId) && String(r.eventId) === eventId && r.stage === 'final') || eventResults.find(r => String(r.eventId) === eventId && r.stage === 'final' && String(r.studentId) === String(studentId));
+      if (!row) {
+        const cand = athleteRegistrations.find(r => String(r.eventId) === eventId && String(r.studentId) === String(studentId));
+        if (!cand) return;
+        row = { id: 'FINAL_' + Math.random().toString(36).slice(2,11), eventId, stage:'final', classId:cand.classId, studentId:cand.studentId, name:cand.name, isSportsClass:isSportsClassById(cand.classId), group:cand.group||1, lane:cand.lane||1, finalLane:cand.lane||1, score:'', numericScore:0, rank:0, rankLabel:'決賽候賽', note:'初賽晉級', printed:false, serialNo:'' };
+        eventResults.push(row);
+      }
+      row[field] = field === 'finalLane' ? Math.max(1, Math.min(12, Math.floor(Number(value) || 1))) : String(value || '').trim();
+      if (field === 'finalLane' && !row.finalColor) row.finalColor = getEventLaneColor(targetEvent, row.finalLane);
+      if (field === 'finalLane' && !row.finalColorName) row.finalColorName = getEventLaneColorName(targetEvent, row.finalLane);
+      // 接力複賽以班級為一隊：將複賽道次與服裝色同步至同班所有選手的複賽紀錄。
+      if (targetEvent.category === '接力賽') {
+        const classId = String(row.classId);
+        const teammates = athleteRegistrations.filter(r => String(r.eventId)===eventId && String(r.classId)===classId);
+        teammates.forEach(cand => {
+          let teammateRow = eventResults.find(r => String(r.eventId)===eventId && r.stage==='final' && String(r.studentId)===String(cand.studentId));
+          if (!teammateRow) {
+            teammateRow = { id:'FINAL_'+Math.random().toString(36).slice(2,11), eventId, stage:'final', classId:cand.classId, studentId:cand.studentId, name:cand.name, isSportsClass:isSportsClassById(cand.classId), group:row.group||1, lane:row.lane||1, score:'', numericScore:0, rank:0, rankLabel:'複賽候賽', note:'接力班級隊伍', printed:false, serialNo:'' };
+            eventResults.push(teammateRow);
+          }
+          teammateRow.finalLane = row.finalLane;
+          teammateRow.finalColor = row.finalColor;
+          teammateRow.finalColorName = row.finalColorName;
+          teammateRow.finalGroup = Number(row.finalGroup || row.group || 1);
+        });
+      }
+      saveLocalEventSnapshot();
+      // 每次編輯決賽道次／顏色即同步該賽事決賽資料，讓列印名單可立即讀取雲端最新設定。
+      if (gasSessionToken && currentUser && ['score','admin'].includes(currentUser.role)) {
+        try {
+          const results = eventResults.filter(r => String(r.eventId) === eventId && r.stage === 'final');
+          const saved = await gasRequest({action:'saveScores', token:gasSessionToken, eventId, stage:'final', results});
+          cloudStateLastUpdatedAt = Number(saved.updatedAt || Date.now());
+          showToast('決賽道次與服裝顏色已同步雲端。', 'success');
+        } catch (err) { showToast('決賽道次已保存在本機，但雲端同步失敗：' + (err.message || err), 'error'); }
+      } else {
+        showToast('決賽道次與服裝顏色已保存在本機；請登入成績／管理帳號同步雲端。', 'info');
+      }
     }
 
     async function saveAllEnteredScores() {
@@ -3884,6 +4014,8 @@
             (item.numericScore === prev.numericScore ? regularRankByStudent[prev.cand.studentId] : idx + 1);
         });
       }
+      const previousStageRows = eventResults.filter(r => String(r.eventId) === String(eventId) && r.stage === stage);
+      const previousStageByStudent = new Map(previousStageRows.map(r => [String(r.studentId), r]));
       eventResults = eventResults.filter(r => !(r.eventId === eventId && r.stage === stage));
       parsedScores.forEach((item, index) => {
         let rank, rankLabel, note = '';
@@ -3900,10 +4032,10 @@
             note = '體育班占前二名，普通班獨立排名';
           }
         } else if (index === 0) {
-          rank = 1; rankLabel = '第一名';
+          rank = 1; rankLabel = '第1名';
           if (item.isSports) note = '體育班最優';
         } else if (triggerCoFirst && index === 1) {
-          rank = 1; rankLabel = '第一名 (並列)'; note = '普通班最優並列第一';
+          rank = 1; rankLabel = '第1名 (並列)'; note = '普通班最優並列第一';
         } else {
           const prev = parsedScores[index - 1];
           if (triggerCoFirst && index === 2) rank = 3;
@@ -3913,10 +4045,15 @@
           rankLabel = `第 ${rank} 名${tieCount > 1 ? ' (並列)' : ''}`;
         }
         item._computedRank = rank;
+        const previousStageRow = previousStageByStudent.get(String(item.cand.studentId)) || {};
         eventResults.push({
-          id: 'RES_' + Math.random().toString(36).substr(2, 9), eventId, stage,
+          ...previousStageRow,
+          id: previousStageRow.id || ('RES_' + Math.random().toString(36).substr(2, 9)), eventId, stage,
           classId: item.cand.classId, studentId: item.cand.studentId, name: item.cand.name,
           isSportsClass: item.isSports, group: item.cand.group || 1, lane: item.cand.lane || 1,
+          finalLane: stage === 'final' ? (Number(previousStageRow.finalLane || previousStageRow.lane || item.cand.lane) || 1) : previousStageRow.finalLane,
+          finalColor: previousStageRow.finalColor || (stage === 'final' ? getEventLaneColor(targetEvent, previousStageRow.finalLane || previousStageRow.lane || item.cand.lane || 1) : undefined),
+          finalColorName: previousStageRow.finalColorName || (stage === 'final' ? getEventLaneColorName(targetEvent, previousStageRow.finalLane || previousStageRow.lane || item.cand.lane || 1) : undefined),
           score: item.scoreStr, numericScore: item.numericScore, rank, rankLabel, note,
           printed: false, serialNo: ''
         });
@@ -3982,6 +4119,9 @@
             isSportsClass: q.isSportsClass,
             group: 1,
             lane: idx + 1,
+            finalLane: idx + 1,
+            finalColor: getEventLaneColor(eventsList.find(e => String(e.id) === String(eventId)), idx + 1),
+            finalColorName: getEventLaneColorName(eventsList.find(e => String(e.id) === String(eventId)), idx + 1),
             score: '',
             numericScore: 0,
             rank: 0,
@@ -4431,7 +4571,7 @@
         if (el.type === 'text') {
           let previewText = (el.richHtml || escapeHtmlForCert_(el.text || '').replace(/\n/g, '<br>'))
             .replace(/{班級}/g, '701 班').replace(/{姓名}/g, '陳小明')
-            .replace(/{賽事}/g, '[七年級] 男 100公尺').replace(/{名次}/g, '第一名')
+            .replace(/{賽事}/g, '[七年級] 男 100公尺').replace(/{名次}/g, '第1名')
             .replace(/{成績}/g, '12.35 秒').replace(/{字號}/g, sampleSerial)
             .replace(/{學年度}/g, systemConfig.academicYear);
 
@@ -5190,10 +5330,46 @@
         eSel.innerHTML += `<option value="${e.id}">[${e.grade}年] ${e.name} (${e.category})</option>`;
       });
       updateChecklistGroupOptions();
+      renderRelayChecklistSettings();
     }
 
+    const relayLaneAssignments = (() => { try { return JSON.parse(localStorage.getItem('jialin_relay_lane_assignments') || '{}') || {}; } catch (_) { return {}; } })();
+    function setRelayLaneAssignment(eventId, classId, lane) {
+      relayLaneAssignments[String(eventId)+'_'+String(classId)] = Math.max(1, Number(lane) || 1);
+      try { localStorage.setItem('jialin_relay_lane_assignments', JSON.stringify(relayLaneAssignments)); } catch (_) {}
+    }
     function onChecklistEventChange() {
       updateChecklistGroupOptions();
+      renderRelayChecklistSettings();
+    }
+
+    function renderRelayChecklistSettings() {
+      const eventId = String(document.getElementById('checkPrintEvent')?.value || 'all');
+      const box = document.getElementById('relayChecklistSettings');
+      const editor = document.getElementById('relayClassLaneEditor');
+      const ev = eventsList.find(x => String(x.id) === eventId);
+      if (!box || !editor) return;
+      if (!ev || ev.category !== '接力賽') { box.classList.add('hidden'); return; }
+      box.classList.remove('hidden');
+      const regs = athleteRegistrations.filter(r => String(r.eventId) === eventId);
+      const classes = [...new Set(regs.map(r => String(r.classId)))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      classes.forEach((cls,i)=>{ if (!relayLaneAssignments[eventId+'_'+cls]) relayLaneAssignments[eventId+'_'+cls] = i+1; });
+      editor.innerHTML = classes.map(cls => `<label class="flex items-center justify-between gap-2 text-sm bg-white rounded-lg p-2 border"><span class="font-bold">${escapeHtmlForPrint(cls)} 班</span><span class="flex items-center gap-2">道次 <input type="number" min="1" max="12" value="${Number(relayLaneAssignments[eventId+'_'+cls])||1}" data-relay-class="${escapeHtmlForPrint(cls)}" onchange="setRelayLaneAssignment('${eventId}',this.dataset.relayClass,this.value)" class="w-16 border rounded p-1 text-center font-bold"></span></label>`).join('') || '<p class="text-xs">尚無接力報名資料</p>';
+      const classSel=document.getElementById('relayLookupClass');
+      const legSel=document.getElementById('relayLookupLeg');
+      if(classSel) classSel.innerHTML=classes.map(cls=>`<option value="${escapeHtmlForPrint(cls)}">${escapeHtmlForPrint(cls)} 班</option>`).join('');
+      const legs=[...new Set(regs.map(r=>Number(r.leg)||0).filter(Boolean))].sort((a,b)=>a-b);
+      if(legSel) legSel.innerHTML='<option value="all">全部棒次</option>'+legs.map(n=>`<option value="${n}">第 ${n} 棒</option>`).join('');
+      renderRelayRosterLookup();
+    }
+
+    function renderRelayRosterLookup() {
+      const eventId=String(document.getElementById('checkPrintEvent')?.value||'');
+      const cls=String(document.getElementById('relayLookupClass')?.value||'');
+      const leg=String(document.getElementById('relayLookupLeg')?.value||'all');
+      const target=document.getElementById('relayRosterLookup'); if(!target) return;
+      const list=athleteRegistrations.filter(r=>String(r.eventId)===eventId && String(r.classId)===cls && (leg==='all'||String(r.leg||'')===leg)).sort((a,b)=>(Number(a.leg)||99)-(Number(b.leg)||99)||Number(!!a.isReserve)-Number(!!b.isReserve));
+      target.innerHTML=list.length?list.map(r=>`<div class="flex justify-between border-b last:border-0 py-1"><span>第 ${Number(r.leg)||'—'} 棒　${escapeHtmlForPrint(String(r.name||''))} ${r.isReserve?'（候補）':''}</span><b>${escapeHtmlForPrint(String(r.classId))} 班</b></div>`).join(''):'查無此班級／棒次選手。';
     }
 
     function updateChecklistGroupOptions() {
@@ -5230,6 +5406,7 @@
         modal.classList.remove('hidden');
         const grade = document.getElementById('paperResultGrade');
         if (grade) grade.value = 'all';
+        const stage = document.getElementById('paperResultStage'); if (stage) stage.value = 'prelim';
         updatePaperResultEvents();
 
         // 若目前頁面尚未取得雲端正式資料，背景重新讀取一次；完成後更新選單。
@@ -5289,6 +5466,93 @@
       updatePaperResultGroups();
     }
 
+    let relayAllocationMode = 'registration';
+    function openRelayClassAllocationModal(mode='registration') {
+      relayAllocationMode = mode;
+      const modal = document.getElementById('relayClassAllocationModal');
+      const eventSel = document.getElementById('relayAllocEvent');
+      const stageSel = document.getElementById('relayAllocStage');
+      const preferred = mode === 'registration' ? document.getElementById('regFilterEvent')?.value : document.getElementById('scoreFilterEvent')?.value;
+      const relayEvents = (eventsList||[]).filter(e=>e.category==='接力賽');
+      eventSel.innerHTML = relayEvents.map(e=>`<option value="${escapeHtmlForPrint(String(e.id))}">${escapeHtmlForPrint(String(e.grade||''))}年級｜${escapeHtmlForPrint(String(e.name||''))}</option>`).join('');
+      if (preferred && preferred !== 'all' && relayEvents.some(e=>String(e.id)===String(preferred))) eventSel.value=preferred;
+      stageSel.value = mode === 'final' ? 'final' : 'prelim';
+      document.getElementById('relayAllocStageWrap').classList.toggle('hidden',mode==='registration');
+      document.getElementById('relayClassAllocationHint').textContent = mode==='registration' ? '參賽名單：套用後會直接更新同班所有選手（含候補）的組別、道次與顏色。' : '複賽／決賽：一個班級視為一隊，套用後同步該班所有決賽成績紀錄及紙本成績登記表。';
+      renderRelayClassAllocationRows(); modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+    function closeRelayClassAllocationModal(){const m=document.getElementById('relayClassAllocationModal');m.classList.add('hidden');m.classList.remove('flex');}
+    function relayAllocKey(ev,stage,cls){return `${ev}_${stage}_${cls}`;}
+    function renderRelayClassAllocationRows(){
+      const eventId=String(document.getElementById('relayAllocEvent')?.value||''); const ev=(eventsList||[]).find(e=>String(e.id)===eventId); const grade=String(document.getElementById('relayAllocGrade')?.value||'all'); const stage=relayAllocationMode==='registration'?'prelim':String(document.getElementById('relayAllocStage')?.value||'final'); const box=document.getElementById('relayClassAllocationRows'); if(!box)return;
+      if(!ev){box.innerHTML='<p class="text-sm text-slate-500">目前沒有接力賽賽事。</p>';return;}
+      const regs=(athleteRegistrations||[]).filter(r=>String(r.eventId)===eventId && (grade==='all'||String(r.classId||'').startsWith(grade)));
+      const classes=[...new Set(regs.map(r=>String(r.classId||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      const existingResults=(eventResults||[]).filter(r=>String(r.eventId)===eventId&&r.stage==='final');
+      box.innerHTML=classes.map((cls,i)=>{
+        const reg=regs.find(r=>String(r.classId)===cls)||{}; const fr=existingResults.find(r=>String(r.classId)===cls)||{}; const cfg=relayAllocationMode==='registration'?{heat:Number(reg.group)||Math.floor(i/6)+1,lane:Number(reg.lane)||i%6+1,color:getEventLaneColor(ev,Number(reg.lane)||i%6+1),colorName:getEventLaneColorName(ev,Number(reg.lane)||i%6+1)}:{heat:Number(fr.finalGroup||fr.group)||Math.floor(i/6)+1,lane:Number(fr.finalLane||fr.lane)||i%6+1,color:fr.finalColor||getEventLaneColor(ev,Number(fr.finalLane||fr.lane)||i%6+1),colorName:fr.finalColorName||getEventLaneColorName(ev,Number(fr.finalLane||fr.lane)||i%6+1)};
+        const members=regs.filter(r=>String(r.classId)===cls).length;
+        return `<div class="grid grid-cols-[70px_72px_72px_90px_1fr_64px] gap-2 items-center border rounded-xl p-2 bg-slate-50" data-relay-alloc-class="${escapeHtmlForPrint(cls)}"><b>${escapeHtmlForPrint(cls)}班</b><label class="text-xs">組別<input data-field="heat" type="number" min="1" value="${cfg.heat}" class="mt-1 w-full border rounded p-1"></label><label class="text-xs">道次<input data-field="lane" type="number" min="1" max="6" value="${cfg.lane}" class="mt-1 w-full border rounded p-1"></label><label class="text-xs">顏色<input data-field="color" type="color" value="${escapeHtmlForPrint(cfg.color)}" class="mt-1 w-full h-8 border rounded"></label><label class="text-xs">色名<input data-field="colorName" value="${escapeHtmlForPrint(cfg.colorName)}" maxlength="8" class="mt-1 w-full border rounded p-1"></label><span class="text-xs text-slate-500">${members} 位隊員</span></div>`;
+      }).join('')||'<p class="text-sm text-slate-500">此賽事目前沒有符合年級的參賽班級。</p>';
+    }
+    function autoAssignRelayClassHeats(){const rows=[...document.querySelectorAll('#relayClassAllocationRows [data-relay-alloc-class]')];rows.forEach((row,i)=>{row.querySelector('[data-field="heat"]').value=Math.floor(i/6)+1;row.querySelector('[data-field="lane"]').value=(i%6)+1;});}
+    async function applyRelayClassAllocation(){
+      const eventId=String(document.getElementById('relayAllocEvent')?.value||''); const ev=(eventsList||[]).find(e=>String(e.id)===eventId); if(!ev)return; const stage=relayAllocationMode==='registration'?'prelim':String(document.getElementById('relayAllocStage')?.value||'final'); const rows=[...document.querySelectorAll('#relayClassAllocationRows [data-relay-alloc-class]')]; const seen=new Set(); const configs=[];
+      for(const row of rows){const cls=row.dataset.relayAllocClass;const heat=Math.max(1,Number(row.querySelector('[data-field="heat"]').value)||1);const lane=Math.max(1,Math.min(6,Number(row.querySelector('[data-field="lane"]').value)||1));const key=`${heat}_${lane}`;if(seen.has(key)){showToast(`第 ${heat} 組第 ${lane} 道重複，請調整後再套用。`,'error');return;}seen.add(key);configs.push({cls,heat,lane,color:row.querySelector('[data-field="color"]').value,colorName:row.querySelector('[data-field="colorName"]').value.trim()});}
+      if(configs.some(c=>configs.filter(x=>x.heat===c.heat).length>6)){showToast('每組最多六個班級，請重新分組。','error');return;}
+      if(relayAllocationMode==='registration'){
+        configs.forEach(c=>(athleteRegistrations||[]).filter(r=>String(r.eventId)===eventId&&String(r.classId)===c.cls).forEach(r=>{r.group=c.heat;r.lane=c.lane;r.laneColor=c.color;r.laneColorName=c.colorName;}));
+        saveLocalEventSnapshot();renderAdminRegistrationsTable();const ok=await syncFullStateToCloud(false);showToast(ok?'已套用所有班級初賽分組、道次與顏色，並同步雲端。':'已套用並暫存本機；雲端同步未成功，請確認管理員登入。',ok?'success':'error');
+      }else{
+        configs.forEach(c=>{const team=(athleteRegistrations||[]).filter(r=>String(r.eventId)===eventId&&String(r.classId)===c.cls);team.forEach(cand=>{let r=(eventResults||[]).find(x=>String(x.eventId)===eventId&&x.stage==='final'&&String(x.studentId)===String(cand.studentId));if(!r){r={id:'FINAL_'+Math.random().toString(36).slice(2,11),eventId,stage:'final',classId:c.cls,studentId:cand.studentId,name:cand.name,score:'',numericScore:0,rank:0,rankLabel:'複賽候賽',note:'接力班級隊伍',printed:false};eventResults.push(r);}r.finalGroup=c.heat;r.finalLane=c.lane;r.finalColor=c.color;r.finalColorName=c.colorName;r.group=c.heat;r.lane=c.lane;});});
+        saveLocalEventSnapshot();if(gasSessionToken&&currentUser&&['score','admin'].includes(currentUser.role)){try{const results=eventResults.filter(r=>String(r.eventId)===eventId&&r.stage==='final');await gasRequest({action:'saveScores',token:gasSessionToken,eventId,stage:'final',results});showToast('複賽班級分組、道次與顏色已同步雲端。','success');}catch(err){showToast('本機已套用，但雲端同步失敗：'+(err.message||err),'error');}}else showToast('複賽編排已暫存本機；請以成績／管理帳號登入後同步雲端。','info');renderScoreEntryTable();
+      }
+      closeRelayClassAllocationModal();
+    }
+    window.openRelayClassAllocationModal=openRelayClassAllocationModal;
+    window.renderRelayClassAllocationRows=renderRelayClassAllocationRows;
+    window.applyRelayClassAllocation=applyRelayClassAllocation;
+
+    const RELAY_PAPER_CONFIG_KEY = 'jialin_relay_paper_heat_config_v1';
+    const relayPaperHeatConfig = (() => { try { return JSON.parse(localStorage.getItem(RELAY_PAPER_CONFIG_KEY) || '{}') || {}; } catch (_) { return {}; } })();
+    function relayPaperKey(eventId, stage, classId) { return `${eventId}_${stage}_${classId}`; }
+    function getRelayPaperSetting(eventId, stage, classId, index) {
+      const key = relayPaperKey(eventId, stage, classId);
+      const saved = relayPaperHeatConfig[key] || {};
+      const registered = (athleteRegistrations||[]).find(r=>String(r.eventId)===String(eventId)&&String(r.classId)===String(classId)) || {};
+      const lane = Math.max(1, Math.min(6, Number(saved.lane || registered.lane) || ((index % 6) + 1)));
+      return { heat: Math.max(1, Number(saved.heat || registered.group) || (Math.floor(index / 6) + 1)), lane,
+        color: saved.color || registered.laneColor || getEventLaneColor(eventsList.find(e => String(e.id) === String(eventId)), lane),
+        colorName: saved.colorName || registered.laneColorName || getEventLaneColorName(eventsList.find(e => String(e.id) === String(eventId)), lane) };
+    }
+    function saveRelayPaperSetting(eventId, stage, classId, field, value) {
+      const classes = [...new Set((Array.isArray(athleteRegistrations) ? athleteRegistrations : []).filter(r => String(r.eventId) === String(eventId)).map(r => String(r.classId || '')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      const idx = classes.indexOf(String(classId));
+      const key = relayPaperKey(eventId, stage, classId);
+      const current = relayPaperHeatConfig[key] || getRelayPaperSetting(eventId, stage, classId, Math.max(0,idx));
+      if (field === 'heat' || field === 'lane') current[field] = Math.max(1, Math.min(99, Math.floor(Number(value) || 1)));
+      else current[field] = String(value || '').trim();
+      relayPaperHeatConfig[key] = current;
+      try { localStorage.setItem(RELAY_PAPER_CONFIG_KEY, JSON.stringify(relayPaperHeatConfig)); } catch (_) {}
+      if (field === 'heat' || field === 'lane') renderRelayPaperGroupEditor();
+    }
+    function renderRelayPaperGroupEditor() {
+      const wrap = document.getElementById('relayPaperSettings');
+      const editor = document.getElementById('relayPaperGroupEditor');
+      const eventId = String(document.getElementById('paperResultEvent')?.value || 'all');
+      const stage = String(document.getElementById('paperResultStage')?.value || 'prelim');
+      const ev = (Array.isArray(eventsList) ? eventsList : []).find(e => String(e.id) === eventId);
+      if (!wrap || !editor) return;
+      if (!ev || ev.category !== '接力賽') { wrap.classList.add('hidden'); return; }
+      wrap.classList.remove('hidden');
+      const classes = [...new Set((Array.isArray(athleteRegistrations) ? athleteRegistrations : []).filter(r => String(r.eventId) === eventId).map(r => String(r.classId || '')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      classes.forEach((cls,i)=>{ const key=relayPaperKey(eventId,stage,cls); if(!relayPaperHeatConfig[key]) relayPaperHeatConfig[key]=getRelayPaperSetting(eventId,stage,cls,i); });
+      try { localStorage.setItem(RELAY_PAPER_CONFIG_KEY, JSON.stringify(relayPaperHeatConfig)); } catch (_) {}
+      editor.innerHTML = classes.map((cls,i)=>{ const v=getRelayPaperSetting(eventId,stage,cls,i); return `<div class="grid grid-cols-[52px_64px_64px_1fr_58px] gap-1 items-center bg-white border rounded-lg p-1.5 text-xs"><b>${escapeHtmlForPrint(cls)}班</b><label>第 <input type="number" min="1" value="${v.heat}" onchange="saveRelayPaperSetting('${eventId}','${stage}','${cls}','heat',this.value)" class="w-9 border rounded p-1 text-center"> 組</label><label>第 <input type="number" min="1" max="6" value="${v.lane}" onchange="saveRelayPaperSetting('${eventId}','${stage}','${cls}','lane',this.value)" class="w-9 border rounded p-1 text-center"> 道</label><label class="flex items-center gap-1">顏色 <input type="color" value="${escapeHtmlForPrint(v.color)}" onchange="saveRelayPaperSetting('${eventId}','${stage}','${cls}','color',this.value)" class="w-8 h-6 border rounded"></label><input value="${escapeHtmlForPrint(v.colorName)}" maxlength="8" placeholder="色名" onchange="saveRelayPaperSetting('${eventId}','${stage}','${cls}','colorName',this.value)" class="w-full min-w-0 border rounded p-1"></div>`; }).join('') || '<p class="text-xs text-slate-500">目前沒有接力報名班級。</p>';
+    }
+    window.renderRelayPaperGroupEditor = renderRelayPaperGroupEditor;
+    window.saveRelayPaperSetting = saveRelayPaperSetting;
+
     function updatePaperResultGroups() {
       const eventId = String(document.getElementById('paperResultEvent')?.value || 'all');
       const grade = String(document.getElementById('paperResultGrade')?.value || 'all');
@@ -5298,6 +5562,7 @@
       const groups = [...new Set(sourceRegistrations.filter(r => eventIds.has(String(r.eventId)) && !r.isReserve).map(r => Number(r.group) || 1))].sort((a,b)=>a-b);
       const sel = document.getElementById('paperResultGroup');
       if (sel) sel.innerHTML = '<option value="all">全部組別（每組各一張）</option>' + groups.map(g=>`<option value="${g}">第 ${g} 組</option>`).join('');
+      renderRelayPaperGroupEditor();
     }
 
     // 同時提供全域函式與直接事件綁定，避免部分部署環境的 inline onclick 找不到函式。
@@ -5327,6 +5592,29 @@
         const pages = [];
 
         selectedEvents.forEach(ev => {
+          if (String(ev.category || '') === '接力賽') {
+            const stage = String(document.getElementById('paperResultStage')?.value || 'prelim');
+            const relayRegs = registrationSource.filter(r => String(r.eventId) === String(ev.id));
+            const classes = [...new Set(relayRegs.map(r => String(r.classId || '')))].filter(Boolean).sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+            const classSettings = classes.map((cls,idx)=>{
+              const baseSetting = getRelayPaperSetting(ev.id,stage,cls,idx);
+              const finalRows = stage === 'final' ? (eventResults||[]).filter(r=>String(r.eventId)===String(ev.id) && r.stage==='final' && String(r.classId)===cls) : [];
+              const finalRow = finalRows[0];
+              const setting = finalRow ? { ...baseSetting, heat:Number(finalRow.finalGroup || finalRow.group || baseSetting.heat) || baseSetting.heat, lane:Number(finalRow.finalLane || finalRow.lane || baseSetting.lane) || baseSetting.lane, color:finalRow.finalColor || baseSetting.color, colorName:finalRow.finalColorName || baseSetting.colorName } : baseSetting;
+              return { cls, setting, roster:relayRegs.filter(r=>String(r.classId)===cls).sort((a,b)=>(Number(a.leg)||99)-(Number(b.leg)||99)) };
+            });
+            const selectedHeats = [...new Set(classSettings.map(x=>x.setting.heat))].sort((a,b)=>a-b);
+            selectedHeats.forEach(heat=>{
+              const teamList = classSettings.filter(x=>x.setting.heat===heat).sort((a,b)=>a.setting.lane-b.setting.lane);
+              if (teamList.length > 6) throw new Error(`${ev.name} 第 ${heat} 組目前有 ${teamList.length} 班，超過每組六隊限制；請先調整接力分組。`);
+              const rows = teamList.map(({cls,setting,roster})=>{
+                const rosterText = roster.map(r=>`${String(Number(r.leg)||0).padStart(2,'0')}${escapeHtmlForPrint(String(r.name||''))}${r.isReserve?'（候補）':''}`).join('、');
+                return `<tr><td>${setting.lane}</td><td><span class="color-chip" style="background:${escapeHtmlForPrint(setting.color)}"></span>${escapeHtmlForPrint(setting.colorName)}</td><td>${escapeHtmlForPrint(cls)} 班</td><td class="relay-roster-cell">${rosterText || '（尚未登錄接力棒次）'}</td><td class="rank-cell"></td><td class="time-cell"></td><td></td></tr>`;
+              }).join('');
+              pages.push(`<section class="paper-result-page relay-paper-result" style="--result-row-height:21mm;--result-font-size:10pt"><header><h1>${escapeHtmlForPrint(String(systemConfig.schoolName || '新北市立佳林國民中學'))}</h1><h2>${escapeHtmlForPrint(String(systemConfig.academicYear || ''))}　${escapeHtmlForPrint(String(ev.name || ''))}　紙本成績登記表（${stage==='final'?'決賽／總決賽':'初賽／預賽'}）</h2><div class="meta">第 ${heat} 組　｜　每組最多六班　｜　參賽班級：${teamList.length} 班　｜　日期：____________　場次：____________</div></header><table><thead><tr><th>道次</th><th>服裝色</th><th>班級</th><th>接力成員與棒次（01姓名、02姓名……）</th><th class="rank-head">名次</th><th class="time-cell">接力成績</th><th>備註</th></tr></thead><tbody>${rows || '<tr><td colspan="7">本組尚無接力班級名單</td></tr>'}</tbody></table><footer><span>記錄員：________________</span><span>裁判長：________________</span></footer></section>`);
+            });
+            return;
+          }
           const eligible = registrationSource.filter(r => String(r.eventId) === String(ev.id) && !r.isReserve && (!eventUsesLanes(ev) || group === 'all' || (Number(r.group) || 1) === Number(group)));
           const groupNumbers = eventUsesLanes(ev) ? [...new Set(eligible.map(r => Number(r.group) || 1))].sort((a,b) => a-b) : (eligible.length ? [1] : []);
           groupNumbers.forEach(gr => {
@@ -5374,6 +5662,15 @@
           #printArea.paper-result-landscape .time-cell { width:18%; font-size:var(--result-font-size, 11pt); }
           #printArea.paper-result-landscape .color-chip { display:inline-block; width:9mm; height:5mm; border:1px solid #111; vertical-align:middle; margin-right:2mm; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
           #printArea.paper-result-landscape .color-name { display:inline-block; font-weight:900; vertical-align:middle; }
+          #printArea.paper-result-landscape .relay-paper-result .relay-roster-cell { text-align:left; white-space:normal; overflow-wrap:anywhere; line-height:1.18; font-size:8.5pt; padding:1mm 1.5mm; }
+          #printArea.paper-result-landscape .relay-paper-result th:nth-child(4), #printArea.paper-result-landscape .relay-paper-result td:nth-child(4) { width:42%; }
+          #printArea.paper-result-landscape .relay-paper-result th:nth-child(3), #printArea.paper-result-landscape .relay-paper-result td:nth-child(3) { width:8%; }
+          #printArea.paper-result-landscape .relay-paper-result th:nth-child(1), #printArea.paper-result-landscape .relay-paper-result td:nth-child(1) { width:6%; }
+          #printArea.paper-result-landscape .relay-paper-result th:nth-child(2), #printArea.paper-result-landscape .relay-paper-result td:nth-child(2) { width:12%; }
+          #printArea.paper-result-landscape .relay-paper-result th:nth-child(5), #printArea.paper-result-landscape .relay-paper-result td:nth-child(5) { width:10%; }
+          #printArea.paper-result-landscape .relay-paper-result th:nth-child(6), #printArea.paper-result-landscape .relay-paper-result td:nth-child(6) { width:14%; }
+          #printArea.paper-result-landscape .relay-paper-result th:nth-child(7), #printArea.paper-result-landscape .relay-paper-result td:nth-child(7) { width:8%; }
+          #printArea.paper-result-landscape .relay-paper-result tbody tr { height:21mm; }
           #printArea.paper-result-landscape footer { display:flex; justify-content:space-between; margin-top:3mm; font-size:9pt; font-weight:700; }
           #printArea.paper-result-landscape .paper-result-page[style*="--result-font-size:9pt"] .rank-head,
           #printArea.paper-result-landscape .paper-result-page[style*="--result-font-size:9pt"] .rank-cell { font-size:11pt; }
@@ -5426,6 +5723,19 @@
 
       let printHtml = '';
       matched.forEach(ev => {
+        if (ev.category === '接力賽') {
+          const relayRegs = athleteRegistrations.filter(r => String(r.eventId) === String(ev.id));
+          const classIds = [...new Set(relayRegs.map(r => String(r.classId)))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+          classIds.forEach(cls => {
+            const lane = Number(relayLaneAssignments[String(ev.id)+'_'+cls]) || (classIds.indexOf(cls)+1);
+            const color = getEventLaneColor(ev, lane);
+            const colorName = getEventLaneColorName(ev, lane);
+            const roster = relayRegs.filter(r=>String(r.classId)===cls).sort((a,b)=>(Number(a.leg)||99)-(Number(b.leg)||99));
+            const relayRows = roster.map((r,i)=>`<tr><td>${i+1}</td><td>第 ${Number(r.leg)||'—'} 棒</td><td>${escapeHtmlForPrint(String(r.name||''))}${r.isReserve?'（候補）':''}</td><td>□ 到　□ 缺</td><td></td></tr>`).join('');
+            printHtml += `<section class="relay-check-page"><header><h1>${escapeHtmlForPrint(String(systemConfig.schoolName||''))}</h1><h2>${escapeHtmlForPrint(String(systemConfig.academicYear||''))}　${escapeHtmlForPrint(String(ev.name||''))}　接力賽檢錄點名單</h2><div>班級：${escapeHtmlForPrint(cls)} 班　｜　道次：第 ${lane} 道　｜　道次顏色：<span class="relay-color" style="background:${escapeHtmlForPrint(color)}"></span> ${escapeHtmlForPrint(colorName)}　｜　選手：${roster.length} 人</div></header><table><thead><tr><th>序</th><th>棒次</th><th>選手姓名</th><th>檢錄</th><th>備註</th></tr></thead><tbody>${relayRows}</tbody></table><footer>檢錄裁判：________________　裁判長：________________　日期：____________</footer></section>`;
+          });
+          return;
+        }
         const candidates = athleteRegistrations.filter(r => {
           const matchEvent = r.eventId === ev.id;
           const matchGroup = (!eventUsesLanes(ev) || selectedGroup === 'all' || String(r.group || 1) === String(selectedGroup));
@@ -5523,7 +5833,7 @@
         `;
       });
 
-      launchPrintJob(printHtml);
+      launchPrintJob(`<style>@page{size:A4 portrait;margin:12mm}.relay-check-page{font-family:Arial,'Microsoft JhengHei',sans-serif;color:#111;page-break-after:always}.relay-check-page:last-child{page-break-after:auto}.relay-check-page header{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}.relay-check-page h1{font-size:18pt;margin:0}.relay-check-page h2{font-size:14pt;margin:5px 0}.relay-check-page table{width:100%;border-collapse:collapse;margin-top:12px}.relay-check-page th,.relay-check-page td{border:1px solid #111;padding:8px;text-align:center;font-size:11pt}.relay-check-page th{background:#eee}.relay-check-page .relay-color{display:inline-block;width:18px;height:12px;border:1px solid #111;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}.relay-check-page footer{margin-top:28px;font-size:10pt;display:flex;justify-content:space-between}</style>${printHtml}`);
     }
 
     function openFinalistPrintModal() {
@@ -5532,6 +5842,7 @@
       if (grade) grade.value = 'all';
       if (count) count.value = '8';
       updateFinalistPrintEvents();
+      renderFinalistLaneEditor();
       openModal('finalistPrintModal');
     }
 
@@ -5545,6 +5856,25 @@
       });
       sel.innerHTML = '<option value="all">全部賽事（每項各一頁）</option>' +
         list.map(ev => `<option value="${escapeHtmlForPrint(String(ev.id))}">[${escapeHtmlForPrint(String(ev.grade || ''))}年] ${escapeHtmlForPrint(String(ev.name || '未命名賽事'))}</option>`).join('');
+    }
+
+    function getFinalistQualified(ev, count) {
+      const finals = (eventResults||[]).filter(r=>String(r.eventId)===String(ev.id)&&r.stage==='final');
+      const prelim=(eventResults||[]).filter(r=>String(r.eventId)===String(ev.id)&&r.stage==='prelim'&&Number(r.rank)>0).sort((a,b)=>Number(a.rank)-Number(b.rank)||Number(a.group||1)-Number(b.group||1)||Number(a.lane||1)-Number(b.lane||1));
+      return prelim.filter(r=>Number(r.rank)<=count).map(r=>{
+        const finalRow=finals.find(f=>String(f.studentId)===String(r.studentId));
+        return {...r, finalResultId:finalRow?.id || '', finalLane:Number(finalRow?.finalLane || finalRow?.lane || r.finalLane || r.lane || 1), finalColor:finalRow?.finalColor || r.finalColor || '', finalColorName:finalRow?.finalColorName || r.finalColorName || ''};
+      });
+    }
+    function renderFinalistLaneEditor() {
+      const box=document.getElementById('finalistLaneEditor'); if(!box) return;
+      const eventId=String(document.getElementById('finalistPrintEvent')?.value||'all');
+      const count=Math.max(1,Math.min(32,Number(document.getElementById('finalistPrintCount')?.value)||8));
+      const evs=(eventsList||[]).filter(e=>eventId==='all'||String(e.id)===eventId);
+      if(eventId==='all'){box.innerHTML='<p class="text-xs text-slate-500">選擇單一賽事後，可逐位調整決賽道次；全部賽事模式則依原始道次列印。</p>';return;}
+      const ev=evs[0]; const qualified=getFinalistQualified(ev,count);
+      if(!qualified.length){box.innerHTML='<p class="text-xs text-slate-500">此賽事尚無已核算的晉級名單。</p>';return;}
+      box.innerHTML='<div class="text-xs font-black mb-2">決賽道次與服裝顏色（資料取自「成績試算－決賽／總決賽」）</div>'+qualified.map((r,i)=>{const lane=Number(r.finalLane)||i+1;const color=r.finalColor||getEventLaneColor(ev,lane);const colorName=r.finalColorName||getEventLaneColorName(ev,lane);return `<div class="grid grid-cols-[1fr_118px] gap-2 items-center border-b py-1 text-xs"><span>${escapeHtmlForPrint(String(r.classId||''))}班 ${escapeHtmlForPrint(String(r.name||''))}｜初賽第${r.rank}名</span><span class="flex items-center gap-1"><b>第${lane}道</b><i class="inline-block w-4 h-4 border rounded" style="background:${escapeHtmlForPrint(String(color))}"></i>${escapeHtmlForPrint(String(colorName))}</span></div>`;}).join('');
     }
 
     function executeFinalistPrint() {
@@ -5561,32 +5891,25 @@
 
       const pages = [];
       selectedEvents.forEach(ev => {
-        const prelim = (eventResults || []).filter(r => String(r.eventId) === String(ev.id) && r.stage === 'prelim' && Number(r.rank) > 0)
-          .sort((a,b) => Number(a.rank) - Number(b.rank) || Number(a.group || 1) - Number(b.group || 1) || Number(a.lane || 1) - Number(b.lane || 1));
+        const prelim = (eventResults || []).filter(r => String(r.eventId) === String(ev.id) && r.stage === 'prelim' && Number(r.rank) > 0);
         if (!prelim.length) return;
-        const qualified = prelim.filter(r => Number(r.rank) <= count);
+        const qualified = getFinalistQualified(ev, count);
         if (!qualified.length) return;
-        const rows = qualified.map((r, i) => `<tr>
-          <td>${i + 1}</td><td>${escapeHtmlForPrint(String(r.rankLabel || `第 ${r.rank} 名`))}</td>
-          <td>${escapeHtmlForPrint(String(r.classId || ''))}</td><td>${escapeHtmlForPrint(String(r.name || ''))}</td>
-          <td>${escapeHtmlForPrint(String(r.group || 1))}</td><td>${escapeHtmlForPrint(eventUsesLanes(ev) ? String(r.lane || 1) : String(r.lane || 1))}</td>
-          <td>${escapeHtmlForPrint(String(r.score ?? ''))}</td><td></td>
-        </tr>`).join('');
-        pages.push(`<section class="finalist-page">
-          <h1>${escapeHtmlForPrint(String(systemConfig.academicYear || ''))} 學年度 佳林國中運動會</h1>
-          <h2>${escapeHtmlForPrint(String(ev.grade || ''))}年級　${escapeHtmlForPrint(String(ev.name || ''))}</h2>
-          <h3>進入決賽名單（初賽前 ${count} 名；同名次並列者一併晉級）</h3>
-          <table><thead><tr><th>序號</th><th>初賽名次</th><th>班級</th><th>姓名</th><th>組別</th><th>${eventUsesLanes(ev) ? '道次' : '序位'}</th><th>初賽成績</th><th>確認</th></tr></thead><tbody>${rows}</tbody></table>
-          <div class="sign">承辦人：________________　裁判長：________________　日期：________________</div>
-        </section>`);
+        const ordered = qualified.map((r,i)=>({...r,printLane:Number(r.finalLane||r.lane)||i+1})).sort((a,b)=>a.printLane-b.printLane||Number(a.rank)-Number(b.rank));
+        const rows = ordered.map((r, i) => {
+          const color=r.finalColor || getEventLaneColor(ev,r.printLane), colorName=r.finalColorName || getEventLaneColorName(ev,r.printLane);
+          const finalRow=(eventResults||[]).find(x=>String(x.eventId)===String(ev.id)&&x.stage==='final'&&String(x.studentId)===String(r.studentId));
+          return `<tr><td>${i+1}</td><td>${r.printLane}</td><td><span class="final-color" style="background:${escapeHtmlForPrint(String(color||'#fff'))}"></span>${escapeHtmlForPrint(String(colorName||''))}</td><td>${escapeHtmlForPrint(String(r.rankLabel||`第 ${r.rank} 名`))}</td><td>${escapeHtmlForPrint(String(r.classId||''))}</td><td>${escapeHtmlForPrint(String(r.name||''))}</td><td>${escapeHtmlForPrint(String(r.score??''))}</td><td class="final-rank-cell">${finalRow && Number(finalRow.rank)>0 ? escapeHtmlForPrint(String(finalRow.rankLabel||`第${finalRow.rank}名`)) : ''}</td><td>${finalRow ? escapeHtmlForPrint(String(finalRow.score??'')) : ''}</td></tr>`;
+        }).join('');
+        pages.push(`<section class="finalist-page"><header><h1>${escapeHtmlForPrint(String(systemConfig.academicYear || ''))} 學年度 佳林國中運動會</h1><h2>${escapeHtmlForPrint(String(ev.grade || ''))}年級　${escapeHtmlForPrint(String(ev.name || ''))}</h2><h3>進入決賽名單（初賽前 ${count} 名；同名次並列者一併晉級）</h3></header><table><thead><tr><th>序號</th><th>決賽道次</th><th>道次顏色</th><th>初賽名次</th><th>班級</th><th>姓名</th><th>初賽成績</th><th>決賽名次</th><th>決賽成績</th></tr></thead><tbody>${rows}</tbody></table><div class="sign">承辦人：________________　裁判長：________________　日期：________________</div></section>`);
       });
       if (!pages.length) { showToast('所選賽事尚無已核算的初賽名次，請先完成初賽成績核算。', 'error'); return; }
       closeModal('finalistPrintModal');
       launchPrintJob(`<style>
-        @page{size:A4 portrait;margin:14mm} .finalist-page{font-family:Arial,'Microsoft JhengHei',sans-serif;color:#111;page-break-after:always} .finalist-page:last-child{page-break-after:auto}
-        h1{text-align:center;font-size:20pt;margin:0 0 8px} h2{text-align:center;font-size:17pt;margin:0 0 6px} h3{text-align:center;font-size:12pt;margin:0 0 18px}
-        table{width:100%;border-collapse:collapse;font-size:11pt} th,td{border:1px solid #222;padding:8px 5px;text-align:center} th{background:#eee;font-weight:bold}
-        .sign{margin-top:28px;font-size:11pt;display:flex;justify-content:space-between}
+        @page{size:A4 landscape;margin:12mm} .finalist-page{font-family:Arial,'Microsoft JhengHei',sans-serif;color:#111;page-break-after:always}.finalist-page:last-child{page-break-after:auto}
+        .finalist-page h1{text-align:center;font-size:20pt;margin:0 0 6px}.finalist-page h2{text-align:center;font-size:17pt;margin:0 0 5px}.finalist-page h3{text-align:center;font-size:12pt;margin:0 0 14px}
+        .finalist-page table{width:100%;border-collapse:collapse;font-size:10pt;table-layout:fixed}.finalist-page th,.finalist-page td{border:1px solid #222;padding:6px 4px;text-align:center;height:12mm}.finalist-page th{background:#eee;font-weight:bold}.finalist-page .final-color{display:inline-block;width:10mm;height:5mm;border:1px solid #222;vertical-align:middle;margin-right:2mm;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+        .finalist-page .sign{margin-top:20px;font-size:11pt;display:flex;justify-content:space-between}
         @media print{body{margin:0}}
       </style>${pages.join('')}`);
       showToast(`已建立 ${pages.length} 項賽事的進入決賽名單。`, 'success');
@@ -5705,7 +6028,7 @@
             const r = res[i];
             rows += `
               <div class="poster-table-row digital-poster-row">
-                <div class="poster-cell poster-rank-cell">${r && String(r.rankLabel || '').includes('並列') ? `<span class="rank-label-split"><span>第一名</span><span class="rank-tie">並列</span></span>` : `<span>${r ? r.rankLabel : `第 ${i + 1} 名`}</span>`}</div>
+                <div class="poster-cell poster-rank-cell">${r && String(r.rankLabel || '').includes('並列') ? `<span class="rank-label-split"><span>第1名</span><span class="rank-tie">並列</span></span>` : `<span>${r ? r.rankLabel : `第${i + 1}名`}</span>`}</div>
                 <div class="poster-cell poster-class-cell">${r ? r.classId + ' 班' : '　班'}</div>
                 <div class="poster-cell poster-name-cell">${r ? r.name : '　　　　　　　　　'}</div>
               </div>
@@ -6181,14 +6504,14 @@
 
     function lockScoreOperatorControls() {
       if (!currentUser || currentUser.role !== 'score') return;
-      // 「體育班榜首時普通班次席並列第一名」是全域排名規則，只有管理員可修改。
+      // 「體育班榜首時普通班次席並列第1名」是全域排名規則，只有管理員可修改。
       const coFirst = document.getElementById('checkCoFirstRule');
       if (coFirst) {
         coFirst.disabled = true;
         coFirst.checked = true;
         coFirst.closest('label')?.classList.add('opacity-60', 'cursor-not-allowed');
         const text = coFirst.closest('label')?.querySelector('span');
-        if (text) text.innerHTML = '啟用體育班榜首時，普通班次席並列第一名 <span class="text-xs text-rose-600">（管理員設定）</span>';
+        if (text) text.innerHTML = '啟用體育班榜首時，普通班次席並列第1名 <span class="text-xs text-rose-600">（管理員設定）</span>';
       }
       // 成績輸入人員不可進入或操作其他管理面板。
       document.querySelectorAll('#adminMainTabs .admin-tab-btn').forEach(btn => {
@@ -6225,7 +6548,7 @@
         coFirst.disabled = false;
         coFirst.closest('label')?.classList.remove('opacity-60', 'cursor-not-allowed');
         const text = coFirst.closest('label')?.querySelector('span');
-        if (text) text.innerHTML = '啟用體育班榜首時，普通班次席並列第一名';
+        if (text) text.innerHTML = '啟用體育班榜首時，普通班次席並列第1名';
       }
     }
 
